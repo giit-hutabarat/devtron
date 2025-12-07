@@ -1,112 +1,67 @@
 <?php
 
-// NAMESPACE BARU: Mengikuti struktur HMVC yang sudah disepakati (App\Modules\Sidang)
 namespace App\Modules\Sidang\Controllers; 
 
 use App\Controllers\BaseController;
 use App\Modules\Sidang\Models\SidangModel;
-use App\Modules\Sidang\Models\SidangAdminModel; // Tambahkan import SidangAdminModel
-use App\Libraries\Settings;
+use App\Modules\Sidang\Models\SidangAdminModel; 
+use App\Libraries\Settings; // Dipakai!
 use Google\Client;
 use Google\Service\Sheets;
 use PhpOffice\PhpWord\TemplateProcessor;
-// ✅ KOREKSI: Ganti Otp\Otp yang menyebabkan Class not found dengan library yang digunakan di AdminSetupController
 use OTPHP\TOTP;
-// Asumsi Anda memiliki UserModel di aplikasi utama untuk menyimpan data NIP dan Secret Key
 use App\Models\UserModel; 
+use CodeIgniter\HTTP\ResponseInterface;
 
-// Mengganti nama kelas menjadi SidangController agar konsisten dengan standar CI4
 class SidangController extends BaseController
 {
     protected $sidangModel;
     protected $sidangAdminModel;
-    protected $setting;
+    protected $setting; // Deklarasi properti
 
     public function __construct()
     {
-        // Load Model, Setting, dan UserModel
         $this->sidangModel = new SidangModel();
-        $this->setting = new Settings(); 
-        $this->sidangAdminModel = new SidangAdminModel(); // Inisialisasi UserModel untuk otentikasi
-    }
-
-    /**
-     * Tampilkan Form Akses (NIP + OTP)
-     */
-    public function accessForm()
-    {
-        // Jika sudah login, langsung redirect ke index
-        if (session()->get('isLoggedInSidang')) {
-            return redirect()->to(site_url('sidang'));
-        }
-
-        $data = [
-            'title' => 'Akses Menu Cetak Sidang',
-            'nama_instansi' => $this->setting->info['nama_instansi'],
-        ];
-        // Pastikan path view sudah benar, mengarah ke modul HMVC
-        return view('\App\Modules\Sidang\Views\access_form', $data); 
-    }
-
-    /**
-     * Proses Verifikasi NIP dan Kode OTP
-     */
-    public function verifyOtp()
-    {
-        $nip = $this->request->getPost('nip'); 
-        $otp_code = $this->request->getPost('otp_code');
-        
-        // Validasi input sederhana
-        if (empty($nip) || empty($otp_code)) {
-            return redirect()->back()->with('error', 'NIP dan Kode OTP wajib diisi.');
-        }
-
-       // 1. Cari Secret Key menggunakan Model BARU (SidangAdminModel)
-        $adminUser = $this->sidangAdminModel->findByNip($nip);
-
-        if (!$adminUser || empty($adminUser['sidang_2fa_secret']) || $adminUser['is_active'] == 0) {
-            // NIP tidak dikenal, belum di-setup, atau tidak aktif
-            return redirect()->back()->with('error', 'NIP tidak terdaftar untuk akses sidang atau belum dikonfigurasi. Hubungi Admin.');
-        }
-
-        $secret_key = $adminUser['sidang_2fa_secret'];
-
-        // 2. Verifikasi Kode TOTP (MENGGUNAKAN LIBRARY BARU)
+        // 🛑 KOREKSI 1: Instansiasi Settings yang aman di constructor (Jika gagal, set ke null)
         try {
-            // ✅ KOREKSI: Gunakan OTPHP\TOTP::create() dengan secret key yang tersimpan
-            // Ini akan membuat objek TOTP dari kunci yang sudah ada.
-            $otp = TOTP::create($secret_key); 
-
-            // Verifikasi kode dengan jendela waktu yang diizinkan (misal: 1 jendela = 30 detik)
-            if ($otp->verify($otp_code, null, 1)) {
-            // KODE VALID!
-            
-            // 3. Buat Sesi Login Sidang Penuh
-            session()->set([
-                'isLoggedInSidang' => true, 
-                'sidang_nip' => $adminUser['nip'],
-                'userId' => $adminUser['id'] // Menyimpan ID dari tabel sidang_admins
-            ]);
-            return redirect()->to(site_url('sidang')); 
-
-            } else {
-                // KODE TIDAK VALID
-                return redirect()->back()->with('error', 'Kode OTP tidak valid atau sudah kadaluarsa. Coba lagi.');
-            }
+            $this->setting = new Settings(); 
         } catch (\Throwable $e) {
-            // 🚨 TANGANI JIKA LIBRARY GAGAL DI-LOAD SAAT VERIFIKASI
-             // (Ini akan terjadi jika masalah Autoloading Class TOTP muncul saat verifikasi)
-             return redirect()->back()->with('error', 'Kesalahan Sistem Verifikasi: Class OTP gagal dimuat. Hubungi Admin. Pesan: ' . $e->getMessage());
+            $this->setting = null; 
         }
+        $this->sidangAdminModel = new SidangAdminModel(); 
     }
 
+    /**
+     * Helper untuk membersihkan nama terdakwa dari Als, Bin, Alias, Dkk, dsb.
+     */
+    private function cleanNamaTerdakwa(string $rawName): string
+    {
+        $keywords = [' als ', ' alias ', ' bin ', ' dkk '];
+        $cleanName = $rawName;
+        $lowerName = strtolower($rawName);
+        $foundPos = false;
 
+        foreach ($keywords as $keyword) {
+            $pos = strpos($lowerName, $keyword); 
+            if ($pos !== false) {
+                 if ($foundPos === false || $pos < $foundPos) {
+                     $foundPos = $pos;
+                 }
+            }
+        }
+        
+        if ($foundPos !== false) {
+            $cleanName = substr($rawName, 0, $foundPos);
+        }
+        
+        return trim($cleanName);
+    }
+    
     /**
      * HELPER: KONEKSI KE GOOGLE SHEET
      */
     private function fetchSheet($range)
     {
-        // Kode ini sudah bagus, tidak perlu diubah.
         $client = new Client();
         $client->setAuthConfig(WRITEPATH . '/kredensial-google.json');
         $client->addScope(Sheets::SPREADSHEETS_READONLY);
@@ -119,73 +74,202 @@ class SidangController extends BaseController
         return $response->getValues();
     }
 
+
+    public function accessForm()
+    {
+        if (session()->get('isLoggedInSidang')) {
+            return redirect()->to(site_url('sidang'));
+        }
+        
+        $namaInstansi = 'INSTANSI ERROR';
+        if ($this->setting !== null) {
+            $namaInstansi = $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR';
+        }
+
+        $data = [
+            'title' => 'Akses Menu Cetak Sidang',
+            'nama_instansi' => $namaInstansi,
+            
+        ];
+        return view('\App\Modules\Sidang\Views\access_form', $data); 
+    }
+
+    public function verifyOtp()
+    {
+        $nip = $this->request->getPost('nip'); 
+        $otp_code = $this->request->getPost('otp_code');
+        
+        // 1. Cek Input
+        if (empty($nip) || empty($otp_code)) {
+            return $this->response->setJSON(['status' => false, 'message' => 'NIP dan Kode OTP wajib diisi.']);
+        }
+
+        $adminUser = $this->sidangAdminModel->findByNip($nip);
+
+        // 2. Cek User
+        if (!$adminUser || empty($adminUser['sidang_2fa_secret']) || $adminUser['is_active'] == 0) {
+            return $this->response->setJSON(['status' => false, 'message' => 'NIP tidak terdaftar untuk akses sidang atau belum dikonfigurasi.']);
+        }
+
+        $secret_key = $adminUser['sidang_2fa_secret'];
+
+        try {
+            $otp = TOTP::create($secret_key); 
+
+            // 3. Verifikasi OTP
+            if ($otp->verify($otp_code, null, 1)) {
+            
+                session()->set([
+                    'isLoggedInSidang' => true, 
+                    'sidang_nip' => $adminUser['nip'],
+                    'userId' => $adminUser['id'] 
+                ]);
+                return $this->response->setJSON([
+                    'status' => true, 
+                    'redirect' => site_url('sidang'), 
+                    'message' => 'Akses berhasil.'
+                ]); 
+
+            } else {
+                return $this->response->setJSON(['status' => false, 'message' => 'Kode OTP tidak valid atau sudah kadaluarsa. Coba lagi.']);
+            }
+        } catch (\Throwable $e) {
+             return $this->response->setJSON(['status' => false, 'message' => 'Kesalahan Sistem Verifikasi.']);
+        }
+    }
+
+
     /**
      * HALAMAN UTAMA (INDEX) - MEMERLUKAN FILTER 'sidang_auth'
      */
- public function index()
+    public function index()
     {
-        // Cek kembali apakah user sudah login. Walaupun sudah ada filter, cek ini bagus untuk redundancy.
+        // Cek redundan login
         if (!session()->get('isLoggedInSidang')) {
              return redirect()->to(site_url('sidang/access'));
         }
         
-        // Ambil Tanggal Unik dari Database buat Filter
+        // 🛑 KOREKSI 2: Logic pengambilan Settings yang Aman di index()
+        $settingsData = [
+            'nama_aplikasi' => 'APP SIDANG',
+            'nama_instansi' => 'INSTANSI ERROR',
+            'logo'          => 'images/default_logo.png',
+            'alamat'        => '-',
+        ];
+
+        if ($this->setting !== null) {
+             try {
+                // Menggunakan method get() dan null coalescing untuk keamanan
+                $settingsData = [
+                    'nama_aplikasi' => $this->setting->get('nama_aplikasi') ?? 'APP SIDANG',
+                    'nama_instansi' => $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR',
+                    'logo'          => $this->setting->get('logo') ?? 'images/default_logo.png',
+                    'alamat'        => $this->setting->get('alamat') ?? '-',
+                ];
+            } catch (\Throwable $e) {
+                // Jika error terjadi saat GET (misalnya query database saat get), pakai default
+            }
+        }
+        
+        // 1. Ambil Semua Tanggal Unik yang Ada (untuk Dropdown)
         $queryTanggal = $this->sidangModel->select('tanggal_sidang')->distinct()->orderBy('tanggal_sidang', 'DESC')->findAll();
         
         $listTanggal = [];
+        $latestDate = null; 
 
-        // ✅ KOREKSI LOGIC DAN SYNTAX UNTUK FORMATTING TANGGAL
         foreach ($queryTanggal as $row) {
-            // Ambil tanggal mentah dari baris database
             $rawDate = $row['tanggal_sidang']; 
 
-            // Pastikan tanggal TIDAK kosong atau bukan 0000-00-00
             if (!empty($rawDate) && $rawDate !== '0000-00-00') {
                 try {
-                    // Coba konversi dan format YYYY-MM-DD menjadi DD-MM-YYYY
-                    $formattedDate = date('d-m-Y', strtotime($rawDate)); 
-                    
-                    // Tambahkan ke array hanya jika formatting berhasil
-                    $listTanggal[] = $formattedDate; 
-                    
+                    // Pastikan format tanggal aman sebelum diformat
+                    if (\DateTime::createFromFormat('Y-m-d', $rawDate) !== false) {
+                        $formattedDate = date('d-m-Y', strtotime($rawDate)); 
+                        if ($latestDate === null) {
+                            $latestDate = $rawDate; 
+                        }
+                        $listTanggal[] = $formattedDate; 
+                    }
                 } catch (\Exception $e) {
-                    // Jika terjadi error saat konversi (misalnya format data rusak), 
-                    // lewati baris ini (tidak perlu ditambahkan ke $listTanggal)
                     continue; 
                 }
             }
-            // Tanggal 0000-00-00 atau kosong akan diabaikan (tidak masuk ke $listTanggal)
         }
         
-        // Ambil 100 data terbaru (allData)
-        // Note: Pastikan format tanggal di all_data sesuai dengan filter JS di View, 
-        // atau format di View menggunakan data-attribute.
-        $allData = $this->sidangModel->orderBy('tanggal_sidang', 'DESC')->findAll(100);
+        $cleanedData = []; 
 
-        // Kirim Data ke View 
+        // 2. Kirim Data ke View 
         $data = [
-            'title'         => 'Cetak Sidang - ' . $this->setting->info['nama_aplikasi'],
-            'nama_instansi' => $this->setting->info['nama_instansi'],
-            'alamat'        => $this->setting->info['alamat'],
-            // ✅ Kirim array tanggal yang sudah diformat ke dropdown
+            'title'         => 'Cetak Sidang - ' . $settingsData['nama_aplikasi'],
+            'nama_instansi_app' => $settingsData['nama_instansi'], 
+            'path_logo_instansi' => $settingsData['logo'],         
+            'alamat'        => $settingsData['alamat'], 
+
             'opt_tanggal'   => $listTanggal, 
-            'all_data'      => $allData, 
-            // Tambahkan NIP yang sedang login ke data view
-            'nip_user'      => session()->get('sidang_nip')
+            'all_data'      => $cleanedData, 
+            'nip_user'      => session()->get('sidang_nip'),
+            'selected_date' => null 
         ];
 
-        // Pastikan path view sudah benar, mengarah ke modul HMVC
         return view('\App\Modules\Sidang\Views\sidang_view', $data);
     }
+    
+    /**
+     * API: Mengambil data sidang full.
+     */
+    public function apiData(): ResponseInterface
+    {
+        $tanggalFilter = $this->request->getGet('tanggal');
+        
+        $query = $this->sidangModel->orderBy('tanggal_sidang', 'ASC');
+
+        if (empty($tanggalFilter)) {
+            return $this->response->setJSON(['status' => 200, 'total' => 0, 'data' => []]);
+        }
+
+        // 🛑 KOREKSI 3: Konversi tanggal dari DD-MM-YYYY ke Database YYYY-MM-DD
+        $dbFormatDate = null;
+        try {
+            // Tanggal masuk DD-MM-YYYY dari JS
+            $dateObj = \DateTime::createFromFormat('d-m-Y', $tanggalFilter);
+            
+            if ($dateObj && $dateObj->format('d-m-Y') === $tanggalFilter) { 
+                $dbFormatDate = $dateObj->format('Y-m-d');
+            } else {
+                return $this->response->setJSON(['status' => 400, 'message' => 'Format tanggal filter tidak valid.']);
+            }
+            $query->where('tanggal_sidang', $dbFormatDate);
+        } catch (\Throwable $e) {
+            return $this->response->setJSON(['status' => 400, 'message' => 'Kesalahan parsing tanggal.']);
+        }
+
+
+        $allData = $query->findAll();
+        $cleanedData = [];
+
+        foreach ($allData as $row) {
+            $row['nama_bersih'] = $this->cleanNamaTerdakwa($row['nama_terdakwa']);
+            $row['data_full'] = json_decode($row['data_full'], true);
+            $row['tanggal_sidang_format'] = $tanggalFilter; 
+
+            $cleanedData[] = $row;
+        }
+
+        return $this->response->setJSON(['status' => 200, 'total' => count($cleanedData), 'data' => $cleanedData]);
+    }
+
     /**
      * FITUR SINKRONISASI (SYNC) - MEMERLUKAN FILTER 'sidang_auth'
      */
     public function sync()
     {
-        // ... (Kode sync() yang sudah ada, tidak ada perubahan logika inti) ...
         // 1. Ambil Data Mentah dari Google Sheet
-        $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A2:K');
-        $masterSheet = $this->fetchSheet('DATA_MASTER!A2:Z');
+        try {
+            $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A1:G100');
+            $masterSheet = $this->fetchSheet('DATA_MASTER!A1:G100');
+        } catch (\Throwable $e) {
+            return redirect()->to('sidang')->with('error', "Gagal koneksi ke server, Hubungi administrator. Pesan: " . $e->getMessage());
+        }
 
         // 2. Buat Kamus Data Master (Kunci: Nomor Perkara / Index 0)
         $masterMap = [];
@@ -204,7 +288,7 @@ class SidangController extends BaseController
             foreach ($sidangSheet as $rowS) {
                 // Bersihkan data
                 $noPerkara = isset($rowS[0]) ? trim(preg_replace('/\s+/', ' ', $rowS[0])) : '';
-                $nama      = isset($rowS[2]) ? trim(preg_replace('/\s+/', ' ', $rowS[2])) : '';
+                $nama      = isset($rowS[1]) ? trim(preg_replace('/\s+/', ' ', $rowS[1])) : '';
                 
                 // Filter Ghost Rows (Data Kosong/Sampah)
                 if ($noPerkara == '' || strlen($noPerkara) < 5 || stripos($noPerkara, 'Nomor') !== false) continue;
@@ -224,7 +308,7 @@ class SidangController extends BaseController
                     'pekerjaan'       => $rowM[10] ?? '-',
                     'pendidikan'      => $rowM[11] ?? '-',
                     'nama_ortu'       => $rowM[12] ?? '-',
-                    'agenda_raw'      => $rowS[7] ?? '-', // Simpan agenda asli
+                    'agenda_raw'      => $rowS[3] ?? '-', // Simpan agenda asli
                     'hari_raw'        => $rowS[6] ?? '-', // Simpan hari asli
                 ];
 
@@ -238,7 +322,7 @@ class SidangController extends BaseController
                     'tanggal_sidang' => $tglSidang, 
                     'nomor_perkara'  => $noPerkara,
                     'nama_terdakwa'  => $nama,
-                    'jpu'            => $rowS[3] ?? '-',
+                    'jpu'            => $rowS[4] ?? '-',
                     'data_full'      => json_encode($dataFull), // Simpan biodata sbg JSON
                 ];
 
@@ -260,8 +344,6 @@ class SidangController extends BaseController
      */
     public function proses()
     {
-        // ... (Kode proses() yang sudah ada, tidak ada perubahan logika inti) ...
-        
         // 1. Ambil Input User
         $selectedNoPerkara = $this->request->getPost('pilih_data');
         $docTypes = $this->request->getPost('jenis_dokumen');
@@ -273,7 +355,6 @@ class SidangController extends BaseController
         $pathArsip = WRITEPATH . 'arsip_sidang';
         $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
 
-        // Buat folder kalau belum ada
         if (!is_dir($pathArsip)) mkdir($pathArsip, 0777, true);
         if (!is_dir($folderBackup)) mkdir($folderBackup, 0777, true);
 
@@ -283,8 +364,9 @@ class SidangController extends BaseController
         // 3. Ambil Data Target dari Database
         if ($mode == 'full_p38') {
             // Mode Tombol Hijau: Ambil semua data tanggal tsb
-            $targetData = $this->sidangModel->where('tanggal_sidang', $tanggalTerpilih)->findAll();
-            $docTypes = ['p38']; // Paksa cuma P38
+            $dbFormatDate = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih)->format('Y-m-d');
+            $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
+            $docTypes = ['p38']; 
         } else {
             // Mode Tombol Kuning: Ambil sesuai checklist
             if(empty($selectedNoPerkara)) return redirect()->back()->with('error', 'Pilih data dulu!');
@@ -304,7 +386,7 @@ class SidangController extends BaseController
 
             $dataRow = [
                 'nomor_perkara'   => $row['nomor_perkara'],
-                'nama_terdakwa'   => $row['nama_terdakwa'],
+                'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']), 
                 'jpu'             => $row['jpu'],
                 'hari_sidang'     => $row['tanggal_sidang'], 
                 'agenda'          => $details['agenda_raw'] ?? '-',
@@ -321,7 +403,6 @@ class SidangController extends BaseController
                 'pekerjaan'       => $details['pekerjaan'] ?? '-',
                 'pendidikan'      => $details['pendidikan'] ?? '-',
                 'nama_ortu'       => $details['nama_ortu'] ?? '-',
-                // AMBIL NIP DARI SESSION
                 'nip_jpu'         => session()->get('sidang_nip') ?? '...................',
             ];
 
@@ -343,12 +424,10 @@ class SidangController extends BaseController
         $totalFiles = count($generatedFiles);
         if ($totalFiles === 0) return redirect()->back()->with('error', 'Gagal generate file.');
 
-        // Kalau cuma 1 file -> Download Langsung
         if ($totalFiles === 1) {
             $singleFile = reset($generatedFiles);
             return $this->response->download($singleFile, null)->setFileName(basename($singleFile));
         } 
-        // Kalau banyak -> ZIP
         else {
             $zip = new \ZipArchive();
             $zipName = $folderBackup . DIRECTORY_SEPARATOR . 'Berkas_Sidang_' . time() . '.zip';

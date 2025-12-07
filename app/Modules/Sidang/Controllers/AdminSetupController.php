@@ -5,15 +5,15 @@ namespace App\Modules\Sidang\Controllers;
 use App\Controllers\BaseController;
 use App\Modules\Sidang\Models\SidangAdminModel;
 
-// ✅ IMPORT LIBRARY OTP (spomky-labs/otphp)
+// Import library yang dibutuhkan
 use OTPHP\TOTP; 
-
-// Import untuk QR Code Builder Anda (Endroid)
-use Endroid\QrCode\Builder\Builder;
-use Endroid\QrCode\Writer\PngWriter;
+// 💥 FIX: Gunakan semua class Builder V6
+use Endroid\QrCode\Builder\Builder; 
+use Endroid\QrCode\Writer\PngWriter; 
 use Endroid\QrCode\Encoding\Encoding;
 use Endroid\QrCode\ErrorCorrectionLevel\ErrorCorrectionLevelHigh;
-use Endroid\QrCode\Label\Label;
+use Endroid\QrCode\Label\Font\NotoSans; 
+
 
 class AdminSetupController extends BaseController
 {
@@ -25,132 +25,116 @@ class AdminSetupController extends BaseController
         try {
             $this->sidangAdminModel = new SidangAdminModel();
         } catch (\Throwable $e) {
-            // Jika model gagal inisialisasi (misal DB error), ini akan ditangkap oleh Debugger CI4
+            // Error handling model/DB
         }
     }
     
-    // --- 1. Fungsi setupIndex ---
+    // --- 1. Fungsi setupIndex: Dipanggil oleh rute 'admin/sidang/setup' ---
     public function setupIndex()
     {
+        if (!$this->sidangAdminModel) {
+            return redirect()->back()->with('error', 'Gagal memuat data administrasi. Cek koneksi database.');
+        }
+
         $listAdmins = $this->sidangAdminModel->findAll();
 
         $data = [
             'title' => 'Manajemen Kunci OTP Pegawai Sidang',
             'list_admins' => $listAdmins
         ];
-        return view('\App\Modules\Sidang\Views\admin\admin_nip_form', $data); 
+        
+        // Panggil view admin/setting_otp
+        return view('\App\Modules\Setting\Views\setting_otp', $data);
     }
-
-    // --- 2. Fungsi saveNip ---
+    
+    // --- 2. Fungsi saveNip: Dipanggil oleh rute POST ---
     public function saveNip()
     {
-        // Validasi dan sanitasi
-        $nip = $this->request->getPost('nip');
-        $nama = $this->request->getPost('nama');
-        
-        if (empty($nip) || empty($nama)) {
-             return redirect()->back()->with('error', 'NIP dan Nama Pegawai wajib diisi.');
+        $input = $this->request->getPost();
+
+        if (!$this->validate(['nip' => 'required|min_length[5]', 'nama_pegawai' => 'required'])) {
+            return redirect()->back()->withInput()->with('error', $this->validator->listErrors());
         }
 
-        $existing = $this->sidangAdminModel->findByNip($nip);
-
-        $dataSave = [
-            'nip' => $nip,
-            'nama_pegawai' => $nama,
-            'is_active' => 0 // Awalnya tidak aktif
+        $data = [
+            'nip' => $input['nip'],
+            'nama_pegawai' => $input['nama_pegawai'],
+            'sidang_2fa_secret' => null, 
+            'is_active' => 0
         ];
 
-        if ($existing) {
-            $this->sidangAdminModel->update($existing['id'], ['nama_pegawai' => $nama]);
-            $message = 'Data NIP berhasil diupdate. Silakan klik "Generate QR Code".';
-        } else {
-            $this->sidangAdminModel->insert($dataSave, true);
-            $message = 'NIP baru berhasil ditambahkan. Silakan klik "Generate QR Code" untuk konfigurasi.';
+        try {
+            if (!empty($input['id'])) {
+                $this->sidangAdminModel->update($input['id'], $data);
+                $message = 'Data NIP berhasil diupdate.';
+            } else {
+                $this->sidangAdminModel->insert($data);
+                $message = 'Data NIP berhasil ditambahkan. Lakukan "Generate QR Code" untuk mengaktifkan OTP.';
+            }
+            return redirect()->back()->with('success', $message);
+        } catch (\Throwable $e) {
+            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
         }
-
-        // Redirect kembali ke halaman daftar NIP
-        return redirect()->to(site_url("admin/sidang/setup")) 
-                         ->with('success', $message);
     }
-
-        // --- 3. GENERATE Secret Key dan QR Code ---
-    public function generateQr($id)
+    
+    // --- 3. Fungsi generateQr: Dipanggil oleh rute 'setting/otp-sidang/generate/(:num)' ---
+    public function generateQr(int $id)
     {
+        // 1. Ambil data user dari database
         $adminUser = $this->sidangAdminModel->find($id);
 
         if (!$adminUser) {
-            return redirect()->to(site_url('admin/sidang/setup'))->with('error', 'Pegawai tidak ditemukan.');
+            return redirect()->back()->with('error', 'NIP tidak ditemukan.');
         }
-
-        $qrCodeImage = '';
-        $errorMessage = null;
-        $secretKey = '';
+        
+        $secretKey = $adminUser['sidang_2fa_secret'];
 
         try {
-            // 1. INJEKSI SECRET KEY KHUSUS YANG VALID BASE32
-            // Karena TOTP::create() dan Base32::generate() gagal di-load, 
-            // kita menggunakan library PHP-Auth (asumsi terinstall) atau membuat string valid.
-            // UNTUK UJI COBA INI, KITA ASUMSIKAN CONSTRUCTOR DASAR BERHASIL:
-            
-            // Mencoba membuat objek TOTP secara default (ini akan gagal jika Base32 helper tidak terload)
-            $otp = TOTP::create();
-            
-            if (!$otp || !($otp instanceof TOTP)) {
-                 throw new \Exception("Gagal inisiasi OTP, mencoba fallback.");
+            if (empty($secretKey)) {
+                $totp = TOTP::generate();
+                $secretKey = $totp->getSecret();
+
+                $this->sidangAdminModel->update($id, [
+                    'sidang_2fa_secret' => $secretKey,
+                    'is_active' => 1 
+                ]);
             }
+
+            // Label untuk aplikasi Authenticator
+            $label = $adminUser['nip'] . ' - ' . $adminUser['nama_pegawai'];
+            $issuer = 'TRON Sidang';
             
-            $secretKey = $otp->getSecret(); // Secret Key yang dihasilkan adalah Base32 yang VALID
+            $totp = TOTP::create($secretKey, 30); 
+            $totp->setIssuer($issuer);
+            $totp->setLabel($label);
+            
+            $provisioningUri = $totp->getProvisioningUri(); 
 
-            // 2. SIMPAN SECRET KEY BARU ke database
-            $this->sidangAdminModel->update($id, [
-                'sidang_2fa_secret' => $secretKey,
-                'is_active' => 1
-            ]);
-
-            // 3. BUAT URI dan QR CODE
-            $otp->setLabel("{$adminUser['nip']} ({$adminUser['nama_pegawai']})")
-                ->setIssuer('AksesSidang-TRON');
-
-            $uri = $otp->getProvisioningUri();
-
-            // 4. GENERATE QR CODE (Endroid)
-            $result = Builder::create()->writer(new PngWriter())->data($uri)
+            // 💥 KOREKSI UTAMA: Menggunakan Builder Pattern V6
+            // Pola yang benar untuk V6 adalah menggunakan withWriter(new PngWriter())
+            $result = (new Builder())
+                ->writer(new PngWriter()) 
+                ->data($provisioningUri)
                 ->encoding(new Encoding('UTF-8'))
                 ->errorCorrectionLevel(new ErrorCorrectionLevelHigh())
-                ->size(300)->labelText('Pindai Sekarang')->build();
-            
+                ->size(300)
+                ->margin(10)
+                ->labelText($label)
+                ->labelFont(new NotoSans(18)) 
+                ->build();
+
+            // Render ke Base64 URI (menggunakan method yang benar untuk Builder)
             $qrCodeImage = $result->getDataUri();
+            $errorMessage = '';
 
         } catch (\Throwable $e) {
-            // 🚨 KETIKA LIBLARY OTP GAGAL (masalah Autoloading/Constructor)
+            // Log Error untuk dibaca di server
+            log_message('critical', 'QR GENERATION FAILED: ' . $e->getMessage());
             
-            // 1. Ambil secret key terakhir dari DB (jika status Aktif)
-            $adminUser = $this->sidangAdminModel->find($id); 
-            $secretKey = $adminUser['sidang_2fa_secret'];
-            
-            // 2. Jika Secret Key KOSONG (Belum Konfigurasi), buat kunci yang panjangnya cukup (Minimal 32)
-            if (empty($secretKey)) {
-                
-                // 🛑 PENTING: Karena kita tidak bisa membuat Base32 valid di sini, 
-                // kita harus mengasumsikan masalah Autoloading.
-                
-                // Set status Belum Konfigurasi
-                $this->sidangAdminModel->update($id, [
-                    'is_active' => 0,
-                    'sidang_2fa_secret' => null
-                ]);
-                
-                return redirect()->back()->with('error', 'Gagal Total: ' . $e->getMessage() . '. Secret Key tidak dapat digenerate (Autoloading Error). NIP direset ke status Belum Konfigurasi.');
-            }
-
-            // 3. Set error message dan placeholder
             $errorMessage = 'Gagal membuat gambar QR Code: ' . $e->getMessage() . '. Harap gunakan Kunci Manual.';
             $qrCodeImage = 'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7'; 
         }
         
-        // --- AKHIR BLOK TRY-CATCH ---
-
-        // 4. Tampilkan QR Code / Kunci Manual ke View
         $data = [
             'title' => 'Setup Kunci OTP Pegawai',
             'user' => $adminUser,
@@ -158,7 +142,7 @@ class AdminSetupController extends BaseController
             'qrCodeImage' => $qrCodeImage,
             'errorMessage' => $errorMessage
         ];
-
-        return view('\App\Modules\Sidang\Views\admin\admin_qr_view', $data); 
+        
+        return view('\App\Modules\Sidang\Views\admin\setup_qr', $data);
     }
 }

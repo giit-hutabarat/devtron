@@ -146,14 +146,21 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
                                 <!-- AKHIR KARTU PERTAMA -->
 
 
-                                <v-col cols="12" sm="6" md="4">
-                                    <v-card class="card-menu mx-auto fill-height pt-8 pb-6 px-4 text-center" color="#450a0a" dark @click="openLogin('sidang')" ripple elevation="15" style="border: 1px solid #ef4444;">
-                                        <div class="icon-circle" style="background: rgba(239, 68, 68, 0.15);"><v-icon size="45" color="#ef4444">mdi-gavel</v-icon></div>
-                                        <h2 class="menu-title red--text text--accent-2">Cetak Sidang</h2>
-                                        <p class="menu-desc">Cetak dokumen persidangan (P-37 & P-38).</p>
-                                        <v-btn color="#ef4444" class="btn-akses white--text elevation-5">Masuk Menu <v-icon right small>mdi-login</v-icon></v-btn>
-                                    </v-card>
-                                </v-col>
+<v-col cols="12" sm="6" md="4">
+    <v-card 
+        class="card-menu mx-auto fill-height pt-8 pb-6 px-4 text-center" 
+        color="#450a0a" 
+        dark 
+        @click="openLogin('sidang_otp')"  ripple 
+        elevation="15" 
+        style="border: 1px solid #ef4444;"
+    >
+        <div class="icon-circle" style="background: rgba(239, 68, 68, 0.15);"><v-icon size="45" color="#ef4444">mdi-gavel</v-icon></div>
+        <h2 class="menu-title red--text text--accent-2">Cetak Sidang</h2>
+        <p class="menu-desc">Cetak dokumen persidangan (P-37 & P-38).</p>
+        <v-btn color="#ef4444" class="btn-akses white--text elevation-5">Masuk Menu <v-icon right small>mdi-login</v-icon></v-btn>
+    </v-card>
+</v-col>    
 
                                 <v-col cols="12" sm="6" md="4">
                                     <v-card class="card-menu mx-auto fill-height pt-8 pb-6 px-4 text-center" color="#064e3b" dark href="<?= base_url('display'); ?>" target="_blank" ripple elevation="10">
@@ -169,30 +176,70 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
                     <div class="fixed-footer"><span class="footer-text">TRON 2025 - <?= $nama_instansi; ?></span></div>
                 </div>
 
-                <v-dialog v-model="modalAuth" persistent max-width="400px">
-                    <v-card color="#1e293b" dark class="rounded-xl pa-5 elevation-24">
-                        <v-card-title class="justify-center text-h5 font-weight-bold text-blue-lighten-3 mb-4">LOGIN SISTEM</v-card-title>
-                        <v-card-text class="text-center pb-0">
-                            <div class="mb-6 d-flex justify-center">
-                                <div style="width: 80px; height: 80px; border-radius:50%; background:rgba(56, 189, 248, 0.1); display:flex; align-items:center; justify-content:center;">
-                                    <v-icon size="40" color="#38bdf8">mdi-shield-account</v-icon>
-                                </div>
-                            </div>
-                            
-                            <v-form ref="formLogin" v-model="valid" @submit.prevent="loginProcess">
-                                <v-text-field v-model="loginUsername" :rules="[rules.required]" label="Username / Email" outlined dense rounded color="light-blue lighten-3" prepend-inner-icon="mdi-account"></v-text-field>
-                                <v-text-field v-model="loginPassword" :rules="[rules.required]" :type="showPass ? 'text' : 'password'" label="Password" outlined dense rounded color="light-blue lighten-3" prepend-inner-icon="mdi-lock" :append-icon="showPass ? 'mdi-eye' : 'mdi-eye-off'" @click:append="showPass = !showPass"></v-text-field>
-                                
-                                <v-alert v-if="errorMsg" type="error" dense text class="mt-2 caption text-left" icon="mdi-alert-circle">{{ errorMsg }}</v-alert>
-                                
-                                <v-btn block color="light-blue accent-3" class="black--text font-weight-bold mt-4 rounded-pill" :loading="loading" :disabled="!valid" type="submit" large>MASUK</v-btn>
-                            </v-form>
-                        </v-card-text>
-                        <v-card-actions class="justify-center mt-3">
-                            <v-btn text small color="grey lighten-1" @click="modalAuth = false">Batal</v-btn>
-                        </v-card-actions>
-                    </v-card>
-                </v-dialog>
+<v-dialog v-model="modalAuth" persistent max-width="400px">
+    <v-card color="#1e293b" dark class="rounded-xl pa-5 elevation-24">
+        <v-card-title class="justify-center text-h5 font-weight-bold text-blue-lighten-3 mb-4">
+            {{ targetUrl === 'sidang_otp' ? 'VERIFIKASI AKSES (2FA)' : '' }}
+        </v-card-title>
+        <v-card-text class="text-center pb-0">
+            
+            <v-form v-if="targetUrl === 'dashboard'" ref="formLogin" v-model="valid" @submit.prevent="loginProcess">
+                <div class="mb-6 d-flex justify-center">
+                    <div style="width: 80px; height: 80px; border-radius:50%; background:rgba(56, 189, 248, 0.1); display:flex; align-items:center; justify-content:center;">
+                        <v-icon size="40" color="#38bdf8">mdi-shield-account</v-icon>
+                    </div>
+                </div>
+                <v-text-field v-model="loginUsername" :rules="[rules.required]" label="Username / Email" outlined dense rounded color="light-blue lighten-3" prepend-inner-icon="mdi-account"></v-text-field>
+                <v-text-field v-model="loginPassword" :rules="[rules.required]" :type="showPass ? 'text' : 'password'" label="Password" outlined dense rounded color="light-blue lighten-3" prepend-inner-icon="mdi-lock" :append-icon="showPass ? 'mdi-eye' : 'mdi-eye-off'" @click:append="showPass = !showPass"></v-text-field>
+                
+                <v-alert v-if="errorMsg" type="error" dense text class="mt-2 caption text-left" icon="mdi-alert-circle">{{ errorMsg }}</v-alert>
+                
+                <v-btn block color="light-blue accent-3" class="black--text font-weight-bold mt-4 rounded-pill" :loading="loading" :disabled="!valid" type="submit" large>MASUK</v-btn>
+            </v-form>
+            
+            <v-form v-else-if="targetUrl === 'sidang_otp'" ref="formSidangOtp" @submit.prevent="verifySidangOtp">
+                <p class="white--text caption mb-4">Masukkan NIP dan Kode OTP 6 digit.</p>
+                <div class="mb-6 d-flex justify-center">
+                    <div style="width: 80px; height: 80px; border-radius:50%; background:rgba(239, 68, 68, 0.15); display:flex; align-items:center; justify-content:center;">
+                        <v-icon size="40" color="#ef4444">mdi-gavel</v-icon>
+                    </div>
+                </div>
+                
+                <v-text-field 
+                    v-model="sidangNip" 
+                    :rules="[rules.required, rules.nipLength]" 
+                    label="NIP Petugas" 
+                    placeholder="Contoh: 198001012005011001"
+                    outlined dense rounded color="red accent-2" 
+                    prepend-inner-icon="mdi-account-card-details"
+                    maxlength="18"
+                    type="text" inputmode="numeric" hide-details="auto"
+                    class="mb-3"
+                ></v-text-field>
+
+                <v-text-field 
+                    v-model="sidangOtpCode" 
+                    :rules="[rules.required, rules.otpLength]" 
+                    label="Kode OTP 6 Digit" 
+                    placeholder="Masukkan kode 6 digit"
+                    outlined dense rounded color="red accent-2" 
+                    prepend-inner-icon="mdi-key"
+                    maxlength="6" type="text" 
+                    inputmode="numeric"
+                    hide-details="auto"
+                ></v-text-field>
+                
+                <v-alert v-if="errorMsg" type="error" dense text class="mt-2 caption text-left" icon="mdi-alert-circle">{{ errorMsg }}</v-alert>
+                
+                <v-btn block color="red accent-2" class="white--text font-weight-bold mt-4 rounded-pill" :loading="loading" type="submit" large>Verifikasi</v-btn>
+            </v-form>
+
+        </v-card-text>
+<v-card-actions class="justify-center mt-3">
+            <v-btn text small color="grey lighten-1" @click="modalAuth = false">Batal</v-btn>
+        </v-card-actions>
+    </v-card>
+</v-dialog>
 
             </v-main>
         </v-app>
@@ -222,14 +269,28 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
                 valid: true, loading: false, showPass: false,
                 loginUsername: "", loginPassword: "", errorMsg: "", 
                 targetUrl: "dashboard", // Default Target
-                rules: { required: v => !!v || 'Wajib diisi.' }
+                sidangNip: "", 
+                sidangOtpCode: "",
+                rules: { 
+            required: v => !!v || 'Wajib diisi.',
+            // ✅ RULE BARU UNTUK NIP (HARUS 18 DIGIT)
+        nipLength: v => (v && v.length === 18) || 'NIP harus 18 digit.',
+            // ✅ RULE BARU
+            otpLength: v => (v && v.length === 6) || 'Kode OTP harus 6 digit.'
+        }
             }),
             methods: {
-                openLogin(target) {
-                    this.targetUrl = target; // Set target dinamis (dashboard/sidang)
+            openLogin(target) {
+                    // Karena 'sidang' sekarang redirect langsung, 
+                    // kita asumsikan openLogin hanya untuk 'dashboard' (admin)
+                    this.targetUrl = target; 
                     this.modalAuth = true;
-                    this.errorMsg = ""; this.loginUsername = ""; this.loginPassword = "";
+                    this.errorMsg = ""; 
+                    this.loginUsername = ""; this.loginPassword = "";
+                    this.sidangNip = ""; this.sidangOtpCode = "";
                     if(this.$refs.formLogin) this.$refs.formLogin.resetValidation();
+                    if(this.$refs.formSidangOtp) this.$refs.formSidangOtp.resetValidation(); // ✅ RESET FORM BARU
+
                 },
                 loginProcess() {
                     if (this.$refs.formLogin.validate()) {
@@ -252,6 +313,33 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
                         }).catch(err => { this.loading = false; this.errorMsg = "Gagal koneksi server."; })
                     }
                 }, // <--- 🔑 KOMO INI YANG SAYA TAMBAH
+                // ✅ FUNGSI BARU UNTUK VERIFIKASI OTP SIDANG
+        verifySidangOtp() {
+            if (this.$refs.formSidangOtp.validate()) {
+                this.loading = true; this.errorMsg = "";
+                var formData = new FormData();
+                formData.append('nip', this.sidangNip);
+                formData.append('otp_code', this.sidangOtpCode);
+
+                // AXIOS KE Controller SidangController::verifyOtp
+                // Asumsi: Route Anda adalah 'sidang/verify'
+                axios.post('<?= site_url('sidang/verify'); ?>', formData).then(res => {
+                    this.loading = false;
+                    if (res.data.status === true) {
+                        // Sukses, redirect ke halaman utama sidang (sidang/index)
+                        window.location.href = res.data.redirect; 
+                    } else {
+                        this.errorMsg = res.data.message;
+                        document.querySelector('.v-dialog .v-card').classList.add('v-shake');
+                        setTimeout(() => document.querySelector('.v-dialog .v-card').classList.remove('v-shake'), 500);
+                    }
+                }).catch(err => { 
+                    this.loading = false; 
+                    this.errorMsg = "Gagal koneksi server atau NIP/OTP salah. Cek konsol."; 
+                })
+            }
+        },
+
                 // 🔑 FIX LOGOUT REDIRECT
                 logoutUser: async function() {
                     try {

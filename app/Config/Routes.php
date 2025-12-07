@@ -28,37 +28,13 @@ $routes->set404Override();
 // Set `$autoRoutesImproved` to true in `app/Config/Feature.php` and set the following to true.
 $routes->setAutoRoute(false);
 
-
-// Ini Pintu Masuknya:
-// ⚠️ KODE LAMA: DIHAPUS/DIKOMENTARI KARENA SUDAH PINDAH KE HMVC MODULE SIDANG
-// $routes->get('sidang', 'Sidang::index');       // <-- URL: /tron/sidang
-// $routes->get('sidang/sync', 'Sidang::sync'); //sync data sidang
-// $routes->post('sidang/proses', 'Sidang::proses'); // <-- Aksi tombol proses
-
-
-// variable buat cek
-// $routes->get('sidang/cek', 'Sidang::cek_data');
-
-//variable master
-// $routes->get('sidang/master', 'Sidang::cek_master');
-
-
-//$routes->get('auth/reset', 'Auth::reset_password');
-
-/*
- * --------------------------------------------------------------------
- * Route Definitions
- * --------------------------------------------------------------------
- */
-
 // We get a performance increase by specifying the default
 // route since we don't have to scan directories.
 $routes->get('/', 'Home::index');
 
 // ⬇️⬇️ TAMBAHKAN INI BRO ⬇️⬇️
 // Arahkan /dashboard langsung ke Controller di dalam Module
-$routes->get('dashboard', '\App\Modules\Dashboard\Controllers\Dashboard::index');
-
+$routes->get('dashboard', '\App\Modules\Dashboard\Controllers\Dashboard::index', ['filter' => 'auth_session']);
 
 /*
  * --------------------------------------------------------------------
@@ -66,13 +42,13 @@ $routes->get('dashboard', '\App\Modules\Dashboard\Controllers\Dashboard::index')
  * --------------------------------------------------------------------
  * Akses ini dilindungi oleh Admin TRON utama (admin_auth)
  */
-$routes->group('admin/sidang', ['filter' => 'admin_auth'], function($routes) {
+$routes->group('admin/sidang', ['filter' => 'auth_session'], function($routes) {
     
     // Controller Admin Setup berada di dalam namespace modul Sidang
     $adminController = '\App\Modules\Sidang\Controllers\AdminSetupController'; 
 
     // 1. Setup Index (GET) - Menampilkan daftar NIP dan form tambah
-    $routes->get('setup', "{$adminController}::setupIndex"); 
+    //$routes->get('setup', "{$adminController}::setupIndex"); 
     
     // 2. Save NIP (POST) - Menerima data NIP baru/update
     $routes->post('save-nip', "{$adminController}::saveNip"); 
@@ -83,7 +59,7 @@ $routes->group('admin/sidang', ['filter' => 'admin_auth'], function($routes) {
 
 // Tambahkan rute ini untuk menampung panggilan yang salah dari frontend
 // dan mengarahkannya ke fungsi 'display()' yang benar.
-$routes->get('api/display/video', 'App\Modules\Video\Controllers\Api\Video::display');
+#$routes->get('api/display/video', 'App\Modules\Video\Controllers\Api\Video::display');
 /**
  * --------------------------------------------------------------------
  * HMVC Routing - AUTO DISCOVERY (KODE INI SUDAH BENAR!)
