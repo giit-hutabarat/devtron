@@ -8,7 +8,7 @@ $path_logo_instansi_db = $path_logo_instansi ?? 'images/default_logo.png';
 $nip_user = $nip_user ?? '-';
 $opt_tanggal = $opt_tanggal ?? [];
 
-// ✅ KOREKSI PATH FINAL: Pastikan penggabungan URL benar
+// KOREKSI PATH FINAL
 $base_url_clean = rtrim($base_url, '/'); 
 $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/'); 
 // --- END ASUMSI ---
@@ -111,12 +111,32 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
             box-shadow: inset 0 0 5px rgba(0, 0, 0, 0.3);
         }
 
+        /* --- KOREKSI ALIGNMENT FILTER INPUT START --- */
+        .filter-box .row {
+            /* KUNCI: Gunakan flex-end untuk menyamakan dasar input/checkbox/tombol */
+            align-items: flex-end !important; 
+        }
+        .filter-box .col-md-4 {
+            /* HAPUS flex-direction: column DI SINI UNTUK MENGEMBALIKAN ALIGNMENT HORIZONTAL BAWAAN BOOTSTRAP */
+            padding-top: 5px;
+            padding-bottom: 5px;
+        }
+        .filter-box .form-select {
+            margin-bottom: 0 !important;
+        }
+        .filter-box .custom-check-group { 
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+        }
+        /* --- KOREKSI ALIGNMENT FILTER INPUT END --- */
+
         /* Form & Checkbox */
-        .form-label { font-size: 0.85rem; color: #ccc; margin-bottom: 5px; font-weight: 500; }
+        .form-label { font-size: 0.85rem; color: #ccc; margin-bottom: 5px; /* KEMBALIKAN MARGIN BAWAAN */ font-weight: 500; }
         .form-select { 
-            /* Z-INDEX FIX: Memastikan select tetap di atas */
+            /* Z-INDEX FIX */
             position: relative;
-            z-index: 100;
+            z-index: 1000;
             background-color: #333; 
             border: 1px solid #444; 
             color: #fff; 
@@ -244,7 +264,7 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
         div.dataTables_wrapper div.col-md-6 { padding-left: 0; padding-right: 0; }
 
         /* ==================================================================== */
-        /* --- MEDIA QUERY (RESPONSIVE OPTIMIZATION) --- */
+        /* --- MEDIA QUERY (RESPONSIVE OPTIMIZATION & TIMELINE FIX) --- */
         /* ==================================================================== */
         @media (max-width: 767.98px) {
             .main-container { padding: 0; } 
@@ -279,16 +299,60 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
                  align-items: flex-start;
                  gap: 5px;
             }
+            
+            /* --- TIMELINE/CARD VIEW STYLING --- */
+            
+            /* Sembunyikan header tabel */
+            #tableSidang thead { display: none; }
+            
+            /* Paksa baris tabel menjadi blok */
+            #tableSidang tbody tr {
+                display: block;
+                margin-bottom: 15px;
+                border: 1px solid var(--border-color);
+                border-radius: 6px;
+                background-color: var(--card-color);
+            }
+
+            /* Paksa sel tabel menjadi blok dan berikan padding */
+            #tableSidang tbody td {
+                display: block;
+                text-align: right; /* Align value to the right */
+                padding: 8px 15px;
+                border-bottom: 1px solid #282828;
+                position: relative;
+            }
+
+            /* Label Timeline (Nomor Perkara, JPU, dll.) */
+            #tableSidang tbody td::before {
+                content: attr(data-label); /* Menggunakan data-label untuk nama kolom */
+                float: left;
+                font-weight: bold;
+                color: var(--primary-accent); /* Aksen Biru Cobalt */
+            }
+
+            /* Hapus border bawah pada sel terakhir */
+            #tableSidang tbody tr:last-child td { border-bottom: none; }
+            
+            /* Styling Aksi (Tombol) di Timeline */
+            #tableSidang tbody td:nth-child(5) { 
+                text-align: center; /* Tombol aksi di tengah */
+                padding: 10px;
+            }
+            
+            /* Terdakwa/Kolom Utama selalu di atas */
+            #tableSidang tbody td:nth-child(2) { 
+                font-size: 1.1em; 
+                font-weight: bold; 
+                border-top: 3px solid var(--primary-accent); 
+            }
         }
 
-            /* --- DROPDOWN OFFSET FIX --- */
+        /* --- DROPDOWN OFFSET FIX --- */
 .form-select { 
-    /* Pastikan z-index tinggi dan position relatif */
     position: relative;
-    z-index: 1000; /* Z-index sangat tinggi */
+    z-index: 1000; 
 }
-
-/* Override untuk dropdown yang melayang (jika menggunakan plugin atau mobile native) */
 .select2-container, .form-select-dropdown, .dataTables_wrapper select {
     z-index: 10000 !important;
 }
@@ -330,7 +394,7 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
                 <input type="hidden" name="tanggal_terpilih" id="inputTanggalHidden" value="">
 
                 <div class="filter-box">
-                    <div class="row g-3 align-items-end">
+                    <div class="row g-3 align-items-end"> 
                         <div class="col-md-4">
                             <label class="form-label"><i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang</label>
                             <select id="dateFilter" class="form-select">
@@ -387,11 +451,11 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
                     <table id="tableSidang" class="table table-dark table-hover align-middle w-100">
                         <thead>
                             <tr>
-                                <th> <input type="checkbox" id="checkAll"> </th> 
-                                <th>Nama Terdakwa</th>
-                                <th>Nomor Perkara</th>
-                                <th>Jaksa Penuntut umum</th>
-                                <th class="text-center">Aksi</th>
+                                <th data-label="Pilih"> <input type="checkbox" id="checkAll"> </th> 
+                                <th data-label="Terdakwa">Nama Terdakwa</th>
+                                <th data-label="No. Perkara">Nomor Perkara</th>
+                                <th data-label="JPU">Jaksa Penuntut umum</th>
+                                <th data-label="Aksi" class="text-center">Aksi</th>
                                 <th class="d-none">Tanggal</th>
                             </tr>
                         </thead>        
@@ -507,7 +571,9 @@ function loadData(selectedDate) {
                     "search": "Cari:", "info": "Total _TOTAL_ Data", "emptyTable": "Tidak ada data sidang untuk tanggal ini.", "zeroRecords": "Data tidak ditemukan."
                 },
                 "columnDefs": [
-                    { "targets": 0, "className": "text-center" }, { "targets": 4, "className": "text-center" }, { "targets": 5, "visible": false }
+                    { "targets": 0, "className": "text-center" }, 
+                    { "targets": 4, "className": "text-center" }, 
+                    { "targets": 5, "visible": false }
                 ]
             });
             
@@ -533,7 +599,9 @@ function loadData(selectedDate) {
                     "search": "Cari:", "info": "Total _TOTAL_ Data", "emptyTable": errorMessage, "zeroRecords": "Data tidak ditemukan."
                 },
                 "columnDefs": [
-                    { "targets": 0, "className": "text-center" }, { "targets": 4, "className": "text-center" }, { "targets": 5, "visible": false }
+                    { "targets": 0, "className": "text-center" }, 
+                    { "targets": 4, "className": "text-center" }, 
+                    { "targets": 5, "visible": false }
                 ]
             });
             isDataTableInitialized = true;
@@ -554,7 +622,9 @@ $(document).ready(function() {
             "search": "Cari:", "info": "Total _TOTAL_ Data", "emptyTable": "Silakan pilih tanggal sidang di atas untuk memuat data.", "zeroRecords": "Data tidak ditemukan."
         },
         "columnDefs": [
-            { "targets": 0, "className": "text-center" }, { "targets": 4, "className": "text-center" }, { "targets": 5, "visible": false }
+            { "targets": 0, "className": "text-center" }, 
+            { "targets": 4, "className": "text-center" }, 
+            { "targets": 5, "visible": false }
         ]
     });
     isDataTableInitialized = true;
@@ -614,7 +684,6 @@ $(document).ready(function() {
         selectedValues.forEach(function(val) {
             $(form).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
         });
-        
         return true;
     });
     
