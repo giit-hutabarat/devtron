@@ -117,7 +117,10 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
             align-items: flex-end !important; 
         }
         .filter-box .col-md-4 {
-            /* HAPUS flex-direction: column DI SINI UNTUK MENGEMBALIKAN ALIGNMENT HORIZONTAL BAWAAN BOOTSTRAP */
+            /* Menggunakan flex-column untuk menyusun Label dan Input/Group */
+            display: flex;
+            flex-direction: column;
+            gap: 5px; 
             padding-top: 5px;
             padding-bottom: 5px;
         }
@@ -125,6 +128,7 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
             margin-bottom: 0 !important;
         }
         .filter-box .custom-check-group { 
+            /* Pastikan group mengisi ruang dan kontennya rata tengah */
             flex-grow: 1;
             display: flex;
             align-items: center;
@@ -132,7 +136,7 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
         /* --- KOREKSI ALIGNMENT FILTER INPUT END --- */
 
         /* Form & Checkbox */
-        .form-label { font-size: 0.85rem; color: #ccc; margin-bottom: 5px; /* KEMBALIKAN MARGIN BAWAAN */ font-weight: 500; }
+        .form-label { font-size: 0.85rem; color: #ccc; margin-bottom: 0px; /* Hapus margin bawah */ font-weight: 500; }
         .form-select { 
             /* Z-INDEX FIX */
             position: relative;
@@ -380,7 +384,7 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
                     <i class="fa-solid fa-building-columns me-3" style="font-size: 1.5rem; color:#fff;"></i>
                     <div>
                         <h5 class="m-0 fw-bold text-white">CETAK BERKAS SIDANG</h5>
-                        <small class="text-white" style="font-size: 0.85rem;">Access Mode: Enterprise | User NIP: <?= esc($nip_user ?? '-') ?></small>
+                        <small class="text-white" style="font-size: 0.85rem;">Nama Pegawai: <?= esc($nama_pegawai ?? '-') ?> | User NIP: <?= esc($nip_user ?? '-') ?></small>
                     </div>
                 </div>
                 <a href="<?= $base_url . '/sidang/sync' ?>" class="btn-sync" onclick="return confirm('Proses ini akan mengambil data terbaru dari Google Sheet dan menyimpannya ke Database. Lanjutkan?');">
@@ -684,6 +688,7 @@ $(document).ready(function() {
         selectedValues.forEach(function(val) {
             $(form).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
         });
+        
         return true;
     });
     

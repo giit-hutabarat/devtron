@@ -83,7 +83,7 @@ class SidangController extends BaseController
         
         $namaInstansi = 'INSTANSI ERROR';
         if ($this->setting !== null) {
-            $namaInstansi = $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR';
+            //$namaInstansi = $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR';
         }
 
         $data = [
