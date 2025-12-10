@@ -36,30 +36,6 @@ $routes->get('/', 'Home::index');
 // Arahkan /dashboard langsung ke Controller di dalam Module
 $routes->get('dashboard', '\App\Modules\Dashboard\Controllers\Dashboard::index', ['filter' => 'auth_session']);
 
-/*
- * --------------------------------------------------------------------
- * ROUTES SETUP NIP (UTILITY ADMIN)
- * --------------------------------------------------------------------
- * Akses ini dilindungi oleh Admin TRON utama (admin_auth)
- */
-$routes->group('admin/sidang', ['filter' => 'auth_session'], function($routes) {
-    
-    // Controller Admin Setup berada di dalam namespace modul Sidang
-    $adminController = '\App\Modules\Sidang\Controllers\AdminSetupController'; 
-
-    // 1. Setup Index (GET) - Menampilkan daftar NIP dan form tambah
-    //$routes->get('setup', "{$adminController}::setupIndex"); 
-    
-    // 2. Save NIP (POST) - Menerima data NIP baru/update
-    $routes->post('save-nip', "{$adminController}::saveNip"); 
-    
-    // 3. Generate QR (GET) - Membuat Secret Key baru dan menampilkan QR Code
-    $routes->get('generate/(:num)', "{$adminController}::generateQr/$1"); 
-});
-
-// Tambahkan rute ini untuk menampung panggilan yang salah dari frontend
-// dan mengarahkannya ke fungsi 'display()' yang benar.
-#$routes->get('api/display/video', 'App\Modules\Video\Controllers\Api\Video::display');
 /**
  * --------------------------------------------------------------------
  * HMVC Routing - AUTO DISCOVERY (KODE INI SUDAH BENAR!)

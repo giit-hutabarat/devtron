@@ -63,6 +63,9 @@ $routes->group('api/sidang', ['filter' => 'sidang_auth', 'namespace' => 'App\\Mo
 // ====================================================================
 $routes->group('setting/otp-sidang', ['filter' => 'auth_session', 'namespace' => 'App\\Modules\\Sidang\\Controllers'], function($routes) use ($adminSetupController){
     
+    $routes->get('/', "{$adminSetupController}::index"); // Asumsi method untuk menampilkan halaman utama setting adalah index()
+    
+    
     // RUTE GENERATE QR CODE
     // URL: /setting/otp-sidang/generate/(:num)
     $routes->get('generate/(:num)', "{$adminSetupController}::generateQr/$1");

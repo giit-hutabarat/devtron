@@ -133,14 +133,17 @@
             { text: 'STATUS', value: 'is_active', align: 'center', width: '15%' },
             { text: 'AKSI', value: 'actions', sortable: false, align: 'center', width: '15%' },
         ],
-        // Data dari PHP
-        rawListAdmins: <?= json_encode($list_admins ?? []) ?> || [], // ✅ Data property mentah
+        // ✅ KOREKSI 1: Pastikan data property ada, meskipun Controller gagal.
+        rawListAdmins: <?= json_encode($list_admins ?? []) ?>,
     });
     
     // 2. Computed Properties (Untuk Penomoran)
     Object.assign(window.computedVue, {
         // ✅ FIX REKURSI: Gunakan nama yang berbeda dari data property
         indexedListAdmins() { 
+            // ✅ KOREKSI 2: Jaminan array sebelum menggunakan .map()
+            // Jika this.rawListAdmins undefined/null, gunakan array kosong []
+            const list = this.rawListAdmins || [];
             return this.rawListAdmins.map( // Mengolah rawListAdmins (data property)
                 (items, index) => ({
                     ...items,
@@ -171,11 +174,13 @@
                         }));
                     } else {
                         this.showSnackbar('Gagal memuat data admins.', 'error');
+                        this.rawListAdmins = [];
                     }
                 })
                 .catch(error => {
                     this.showSnackbar('Error saat memuat data admins.', 'error');
                     console.error("Error loading admins:", error);
+                    this.rawListAdmins = [];
                 })
                 .finally(() => {
                     this.loading = false;
@@ -254,21 +259,28 @@
         }
     });
 
-    // 4. Created Hook
-    window.defaultCreatedVue = function() {
-        // 💥 KOREKSI UTAMA: Hapus semua logika rekursif di sini
-        
-        // Logic utama
-        this.loadAdmins();
-        axios.defaults.headers.common['X-requested-with'] = 'XMLHttpRequest';
-        // Ambil flashdata dari PHP dan tampilkan
-        <?php if (session()->getFlashdata('success')): ?>
-            this.showSnackbar('<?= esc(session()->getFlashdata('success'), 'js') ?>', 'success');
-        <?php endif; ?>
-        <?php if (session()->getFlashdata('error')): ?>
-            this.showSnackbar('<?= esc(session()->getFlashdata('error'), 'js') ?>', 'error');
-        <?php endif; ?>
-        console.log("OTP Setup View: Data Loaded");
-    };
+ // 4. Created Hook
+window.defaultCreatedVue = function() {
+    
+    // 💥 KOREKSI 1: Set header AJAX di awal
+    axios.defaults.headers.common['X-requested-with'] = 'XMLHttpRequest';
+    
+    // 💥 KOREKSI 2: Logika Load Data yang Cerdas
+    // Cek apakah data sudah dimuat oleh PHP (data awal yang di-inject)
+    // Jika rawListAdmins (dari PHP) tidak ada isinya, baru panggil API.
+    if (!this.rawListAdmins || this.rawListAdmins.length === 0) {
+        this.loadAdmins(); 
+    }
+    
+    // Ambil flashdata dari PHP dan tampilkan
+    <?php if (session()->getFlashdata('success')): ?>
+        this.showSnackbar('<?= esc(session()->getFlashdata('success'), 'js') ?>', 'success');
+    <?php endif; ?>
+    <?php if (session()->getFlashdata('error')): ?>
+        this.showSnackbar('<?= esc(session()->getFlashdata('error'), 'js') ?>', 'error');
+    <?php endif; ?>
+    
+    console.log("OTP Setup View: Data Loaded");
+};
 </script>
 <?= $this->endSection(); ?>

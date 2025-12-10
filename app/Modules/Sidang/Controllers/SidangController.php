@@ -63,7 +63,7 @@ class SidangController extends BaseController
     private function fetchSheet($range)
     {
         $client = new Client();
-        $client->setAuthConfig(WRITEPATH . '/kredensial-google.json');
+        $client->setAuthConfig(WRITEPATH . '/json-by2025.json');
         $client->addScope(Sheets::SPREADSHEETS_READONLY);
         $service = new Sheets($client);
         
@@ -81,14 +81,27 @@ class SidangController extends BaseController
             return redirect()->to(site_url('sidang'));
         }
         
-        $namaInstansi = 'INSTANSI ERROR';
-        if ($this->setting !== null) {
-            //$namaInstansi = $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR';
+        $namaInstansi = 'NAMA INSTANSI DEFAULT';
+        $logoInstansi = base_url('assets/images/default_logo.png');
+    if ($this->setting !== null) {
+        // ✅ AKTIFKAN DAN KOREKSI INI
+        try {
+            $namaInstansi = $this->setting->get('nama_instansi') ?? $namaInstansi;
+            $logo = $this->setting->get('logo');
+        
+            if (empty($logo)) {
+            $logoInstansi = base_url('$logo');
+            }
+       
+        } catch (\Throwable $e) {
+            // Biarkan default jika error database saat get settings
         }
+    }
 
         $data = [
-            'title' => 'Akses Menu Cetak Sidang',
+            'title' => 'Akses Cetak Berkas Sidang',
             'nama_instansi' => $namaInstansi,
+            'logo_instansi' => $logoInstansi,
             
         ];
         return view('\App\Modules\Sidang\Views\access_form', $data); 
@@ -202,7 +215,7 @@ class SidangController extends BaseController
         $data = [
             'title'         => 'Cetak Sidang - ' . $settingsData['nama_aplikasi'],
             'nama_instansi_app' => $settingsData['nama_instansi'], 
-            'path_logo_instansi' => $settingsData['logo'],         
+            'path_logo_instansi' => base_url($settingsData['logo']),         
             'alamat'        => $settingsData['alamat'], 
 
             'opt_tanggal'   => $listTanggal, 

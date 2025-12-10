@@ -10,3 +10,6 @@
 /public/uploads/
 /writable/*.json
 /app/Config/Database.php
+*.DS_Store
+/.idea
+/.vscode

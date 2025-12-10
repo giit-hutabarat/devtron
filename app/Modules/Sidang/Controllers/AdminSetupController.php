@@ -30,7 +30,7 @@ class AdminSetupController extends BaseController
     }
     
     // --- 1. Fungsi setupIndex: Dipanggil oleh rute 'admin/sidang/setup' ---
-    public function setupIndex()
+    public function index()
     {
         if (!$this->sidangAdminModel) {
             return redirect()->back()->with('error', 'Gagal memuat data administrasi. Cek koneksi database.');
@@ -44,7 +44,7 @@ class AdminSetupController extends BaseController
         ];
         
         // Panggil view admin/setting_otp
-        return view('\App\Modules\Setting\Views\setting_otp', $data);
+        return view('\App\Modules\Sidang\Views\otp-sidang', $data);
     }
     
     // --- 2. Fungsi saveNip: Dipanggil oleh rute POST ---

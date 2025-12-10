@@ -8,7 +8,6 @@ use CodeIgniter\Filters\DebugToolbar;
 use CodeIgniter\Filters\Honeypot;
 use App\Filters\AuthSessionFilter; 
 use App\Modules\Sidang\Filters\SidangAdminFilter;
-use App\Filters\AuthFilter;
 use App\Filters\SidangAuth; // ✅ Diperlukan karena classnya ada di app/Filters
 
 class Filters extends BaseConfig
@@ -23,13 +22,11 @@ class Filters extends BaseConfig
         'csrf'          => CSRF::class,
         'toolbar'       => DebugToolbar::class,
         'honeypot'      => Honeypot::class,
-        'auth'          => AuthFilter::class, 
         'auth_session'  => AuthSessionFilter::class, // Filter Session BARU
         
         // --- ALIAS SIDANG & ADMIN ---
         'sidang_auth'   => SidangAuth::class, // ✅ Menggunakan Class yang di-import di atas (App\Filters\SidangAuth)
-        'sidang_admin_auth' => SidangAdminFilter::class, // Filter Admin Setup
-        'admin_auth'    => AuthSessionFilter::class, // Alias untuk Proteksi Admin TRON (Menggunakan AuthSessionFilter)
+
     ];
 
     /**
