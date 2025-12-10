@@ -22,7 +22,7 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
 
         /* BACKGROUND */
         .bg-container {
-            background-image: url('<?= base_url('images/kantor.jpg'); ?>');
+            background-image: url('');
             background-size: cover; background-position: center;
             width: 100vw; height: 100vh; position: relative;
         }

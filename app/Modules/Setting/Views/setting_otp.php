@@ -1,4 +1,4 @@
-<?php $this->extend("\\App\\Views\\layouts\\backend"); ?>
+<?php $this->extend("layouts/backend"); ?>
 
 <?= $this->section('content'); ?>
 <template>
