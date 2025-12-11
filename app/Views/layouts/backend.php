@@ -164,7 +164,7 @@ $uri = service('uri');
                             </template>
                             <v-list-item link href="<?= base_url('setting/general'); ?>" class="pl-8"><v-list-item-icon><v-icon small>mdi-cog-outline</v-icon></v-list-item-icon><v-list-item-title>Umum</v-list-item-title></v-list-item>
                             <v-list-item link href="<?= base_url('setting/app'); ?>" class="pl-8"><v-list-item-icon><v-icon small>mdi-application-cog</v-icon></v-list-item-icon><v-list-item-title>Aplikasi</v-list-item-title></v-list-item>
-                            <v-list-item link href="<?= base_url('setting/otp-sidang'); ?>" class="pl-8"><v-list-item-icon><v-icon small>mdi-layers-outline</v-icon></v-list-item-icon><v-list-item-title>Layout</v-list-item-title></v-list-item>
+                            <v-list-item link href="<?= base_url('setting/otp-sidang'); ?>" class="pl-8"><v-list-item-icon><v-icon small>mdi-key-variant</v-icon></v-list-item-icon><v-list-item-title>OTP Sidang</v-list-item-title></v-list-item>
                         </v-list-group>
 
                     <?php endif; ?>
