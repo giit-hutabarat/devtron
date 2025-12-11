@@ -16,6 +16,7 @@ class SidangAdminModel extends Model
         'nama_pegawai',             // Nama Pegawai (untuk referensi)
         'sidang_2fa_secret',        // Secret Key TOTP (PENTING)
         'is_active',                // Flag apakah akses TOTP NIP ini aktif (0/1)
+        'gr_regerate_count',         // Jumlah regenerasi secret key mau kita batasin 5x
     ];
 
     protected $useTimestamps = true;

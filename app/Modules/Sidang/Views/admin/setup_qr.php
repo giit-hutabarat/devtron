@@ -115,7 +115,7 @@ $baseUrl = site_url();
 
         <p style="margin-top: 25px;">Langkah 2: Setelah sukses di aplikasi, NIP **<?= $user['nip'] ?>** bisa menggunakan Kode OTP untuk masuk.</p>
 
-        <a href="<?= site_url('setting/otp-sidang') ?>" class="back-link">
+        <a href="<?= site_url('setting/admin-sidang') ?>" class="back-link">
             &larr; Kembali ke Daftar NIP
         </a>
     </div>

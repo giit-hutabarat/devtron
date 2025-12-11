@@ -37,8 +37,9 @@ class SidangAdmin extends BaseControllerApi
 
     public function save()
     {
-        // Endpoint: POST /api/sidang/admins/save
+        // Endpoint: POST /api/admins/save
         $input = $this->getRequestInput();
+        log_message('debug', 'API saveNIP receive input ' . json_encode($input));
 
         // Ambil data untuk disimpan
         $data = [
@@ -50,11 +51,12 @@ class SidangAdmin extends BaseControllerApi
         
         // Validasi dan Simpan
         if (!$this->validate(['nip' => 'required|is_unique[sidang_admins.nip]', 'nama_pegawai' => 'required'])) {
+            log_message('debug', 'API saveNIP validation failed: ' . json_encode($this->validator->getErrors()));
             return $this->respond([
                 'status' => false,
-                'message' => 'Validasi gagal',
+                'message' => 'Validasi gagal: ' . implode(', ', $this->validator->getErrors()),
                 'data' => $this->validator->getErrors(),
-            ], 200);
+            ], ResponseInterface::HTTP_BAD_REQUEST);
         }
 
         try {
@@ -87,7 +89,7 @@ class SidangAdmin extends BaseControllerApi
              return $this->respond([
                 'status' => false,
                 'message' => 'Gagal mengaktifkan. Secret Key belum dibuat. Silakan Generate QR Code terlebih dahulu.',
-            ], 200);
+            ], ResponseInterface::HTTP_PRECONDITION_FAILED);
         }
 
 
@@ -98,9 +100,31 @@ class SidangAdmin extends BaseControllerApi
             return $this->respond([
                 'status' => true,
                 'message' => $message,
-            ], 200);
+            ], ResponseInterface::HTTP_OK);
         } catch (\Throwable $e) {
             return $this->failServerError('Gagal toggle status: ' . $e->getMessage());
+        }
+    }
+     public function delete($id = null)
+    {
+        // Endpoint: DELETE /api/sidang/admins/delete/(:segment)
+        
+        if (!$this->model->find($id)) {
+            return $this->failNotFound('Admin tidak ditemukan.');
+        }
+
+        try {
+            // Hapus data
+            $this->model->delete($id);
+            
+            return $this->respond([
+                'status' => true,
+                'message' => 'NIP Pegawai berhasil dihapus permanen.',
+            ], ResponseInterface::HTTP_OK);
+            
+        } catch (\Throwable $e) {
+            // Jika gagal karena constraint foreign key atau lainnya
+            return $this->failServerError('Gagal menghapus NIP: ' . $e->getMessage());
         }
     }
 }

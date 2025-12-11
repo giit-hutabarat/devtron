@@ -6,15 +6,12 @@ if(!isset($routes))
 }
 
 // Definisikan Controller yang dibutuhkan
-// Controller WEB untuk tampilan utama/login
 $sidangController = '\App\Modules\Sidang\Controllers\SidangController';
-// Controller WEB untuk setup OTP
 $adminSetupController = '\App\Modules\Sidang\Controllers\AdminSetupController';
 
 
 // ====================================================================
-// 1. ⬇️ RUTE AKSES PEGAWAI (DILINDUNGI OTP) ⬇️
-// Digunakan oleh pegawai untuk login dan sync. Filter sidang_auth
+// 1. ⬇️ RUTE AKSES PEGAWAI (DILINDUNGI OTP) ⬇️ (TIDAK BERUBAH)
 // ====================================================================
 $routes->group('sidang', function($routes) use ($sidangController) {
     
@@ -22,55 +19,54 @@ $routes->group('sidang', function($routes) use ($sidangController) {
     $routes->get('access', "{$sidangController}::accessForm"); 
     $routes->post('verify', "{$sidangController}::verifyOtp"); 
 
-    // Rute Terlindungi (Memerlukan Filter 'sidang_auth')
+    // Rute Terlindungi
     $routes->get('/', "{$sidangController}::index", ['filter' => 'sidang_auth']);
     $routes->get('sync', "{$sidangController}::sync", ['filter' => 'sidang_auth']);
     $routes->post('proses', "{$sidangController}::proses", ['filter' => 'sidang_auth']);
     
-    // ✅ RUTE API DATA LAMA (Contoh)
-    // URL: /sidang/api/data
     $routes->get('api/data', "{$sidangController}::apiData", ['filter' => 'sidang_auth']);
-
-    // ✅ KOREKSI INI: Tambahkan Rute untuk Logout
-    $routes->get('logout', "{$sidangController}::logout"); // Mapped ke method logout()
+    $routes->get('logout', "{$sidangController}::logout");
 });
 
 
 // ====================================================================
-// 2. ⬇️ RUTE ADMINISTRASI OTP (Diperlukan oleh Setting OTP) ⬇️
-// 💥 FILTER: Menggunakan filter 'sidang_auth' sesuai permintaan lo
-// Controller: App\Modules\Sidang\Controllers\Api\SidangAdmin
+// 2. ⬇️ RUTE ADMINISTRASI ADMIN SIDANG (WEB VIEW + API) ⬇️
+// URL Baru: setting/admin-sidang/*
+// Dilindungi penuh oleh 'auth_session'
 // ====================================================================
-$routes->group('api/sidang', ['filter' => 'sidang_auth', 'namespace' => 'App\\Modules\\Sidang\\Controllers\\Api'], function($routes){
+$routes->group('setting/admin-sidang', ['filter' => 'auth_session'], function($routes) use ($adminSetupController){
     
-    // GET Data Admin untuk Tabel (LOAD) - Dipanggil oleh setting_otp.php
-    // URL: /api/sidang/admins
-    $routes->get('admins', 'SidangAdmin::index'); 
+    // 2.1. Rute WEB View
+    // URL: /setting/admin-sidang/
+    $routes->get('/', "{$adminSetupController}::index"); 
     
-    // POST/SAVE Admin Baru (NIP & Nama) - Dipanggil oleh setting_otp.php
-    // URL: /api/sidang/admins/save
-    $routes->post('admins/save', 'SidangAdmin::save');
-    
-    // PUT/TOGGLE Status Aktif (id) - Dipanggil oleh setting_otp.php
-    // URL: /api/sidang/admins/toggle/123
-    $routes->put('admins/toggle/(:segment)', 'SidangAdmin::toggle/$1');
-    
-    // DELETE Admin (Jika ada)
-    $routes->delete('admins/delete/(:segment)', 'SidangAdmin::delete/$1');
-});
-
-
-// ====================================================================
-// 3. ⬇️ RUTE GENERATE QR CODE (URL REDIRECT) ⬇️
-// Ini adalah rute web yang dipanggil oleh tombol QR di setting_otp.php
-// ====================================================================
-$routes->group('setting/otp-sidang', ['filter' => 'auth_session', 'namespace' => 'App\\Modules\\Sidang\\Controllers'], function($routes) use ($adminSetupController){
-    
-    $routes->get('/', "{$adminSetupController}::index"); // Asumsi method untuk menampilkan halaman utama setting adalah index()
-    
-    
-    // RUTE GENERATE QR CODE
-    // URL: /setting/otp-sidang/generate/(:num)
+    // RUTE GENERATE QR CODE (Redirect ke view setup_qr.php)
+    // URL: /setting/admin-sidang/generate/(:num)
     $routes->get('generate/(:num)', "{$adminSetupController}::generateQr/$1");
     
+    
+    // 2.2. Rute API (Diambil oleh Vue.js di otp-sidang.php)
+    // Namespace API langsung digunakan di rute ini agar tidak konflik dengan AdminSetupController
+    $routes->group('api', ['namespace' => 'App\\Modules\\Sidang\\Controllers\\Api'], function($routes){
+        
+        // GET Data Admin untuk Tabel (LOAD)
+        // URL: /setting/admin-sidang/api/admins
+        $routes->get('admins', 'SidangAdmin::index'); 
+        
+        // POST/SAVE Admin Baru
+        // URL: /setting/admin-sidang/api/admins/save
+        $routes->post('admins/save', 'SidangAdmin::save');
+        
+        // PUT/TOGGLE Status Aktif
+        // URL: /setting/admin-sidang/api/admins/toggle/123
+        $routes->put('admins/toggle/(:segment)', 'SidangAdmin::toggle/$1');
+        
+        // DELETE Admin
+        $routes->delete('admins/delete/(:segment)', 'SidangAdmin::delete/$1');
+    });
+
 });
+
+// 💥 Hapus rute API lama (Bagian 2 yang lama)
+
+// 💥 Hapus rute WEB lama (Bagian 3 yang lama)
