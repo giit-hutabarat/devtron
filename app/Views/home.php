@@ -81,7 +81,7 @@ $userFullname = session()->get('fullname') ?? 'ADMIN';
                             
                             <v-row justify="center">
                                 <v-col cols="12" class="text-center mb-8">
-                                    <img src="" width="110" class="mb-4" style="filter: drop-shadow(0 0 15px rgba(255,255,255,0.2));">
+                                    <img src="<?= base_url('images/logo_kejaksaan.png'); ?>" width="110" class="mb-4" style="filter: drop-shadow(0 0 15px rgba(255,255,255,0.2));">
                                     <h1 class="text-h4 text-md-h3 font-weight-bold white--text mb-2">SISTEM INFORMASI TRON</h1>
                                     <div style="width: 80px; height: 4px; background: #ef4444; margin: 0 auto 10px auto; border-radius: 2px;"></div>
                                     <h3 class="text-h6 grey--text text--lighten-1"><?= $nama_instansi; ?></h3>
