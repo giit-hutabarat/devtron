@@ -5,6 +5,7 @@
 *.rar
 *.log
 *.DS_Store
+*.json
 /xampp/
 /writable/cache/
 /public/uploads/
