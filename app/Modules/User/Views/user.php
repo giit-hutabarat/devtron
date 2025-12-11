@@ -1,193 +1,228 @@
 <?php $this->extend("layouts/backend"); ?>
 <?php $this->section("content"); ?>
 <template>
-    <v-card>
-        <v-card-title>
-            <h2><?= $title; ?></h2>
+    <!-- Card Kontainer Utama -->
+    <v-card class="rounded-xl elevation-4">
+        
+        <!-- Header Halaman -->
+        <v-card-title class="pa-4 grey lighten-5">
+            <v-icon left color="indigo">mdi-account-multiple</v-icon>
+            <h1 class="font-weight-bold text-h5 grey--text text--darken-3"><?= $title; ?></h1>
         </v-card-title>
-        <v-toolbar flat>
-            <v-btn color="indigo" dark @click="modalAddOpen" large elevation="1">
-                <v-icon>mdi-account</v-icon> <?= lang('App.add') ?>
-            </v-btn>
-            <v-spacer></v-spacer>
-            <v-text-field v-model="search" append-icon="mdi-magnify" label="<?= lang("App.search") ?>" single-line hide-details>
-            </v-text-field>
-        </v-toolbar>
-        <v-data-table :headers="headers" :items="users" :items-per-page="10" :loading="loading" :search="search" class="elevation-1" loading-text="Sedang memuat... Harap tunggu" dense>
-            <template v-slot:item="{ item }">
-                <tr>
-                    <td>{{item.id}}</td>
-                    <td>{{item.email}}</td>
-                    <td>{{item.username}}</td>
-                    <td>
-                        <span v-if="item.username == 'admin'">
-                            <v-select v-model="item.user_type" name="user_type" :items="roles" item-text="label" item-value="value" label="Select" single-line disabled></v-select>
-                        </span>
-                        <span v-else>
-                            <v-select v-model="item.user_type" name="user_type" :items="roles" item-text="label" item-value="value" label="Select" single-line @change="setRole(item)"></v-select>
-                        </span>
-
-                    </td>
-                    <td>
-                        <span v-if="item.username == 'admin'">
-                            <v-switch v-model="item.is_active" name="is_active" false-value="0" true-value="1" color="success" disabled></v-switch>
-                        </span>
-                        <span v-else>
-                            <v-switch v-model="item.is_active" name="is_active" false-value="0" true-value="1" color="success" @click="setActive(item)"></v-switch>
-                        </span>
-                    </td>
-                    <td>
-                        <v-btn color="indigo" class="mr-3" @click="editItem(item)" icon>
-                            <v-icon>mdi-pencil</v-icon>
-                        </v-btn>
-                        <v-btn color="grey darken-2" @click="changePassword(item)" class="mr-3" icon>
-                            <v-icon>mdi-key-variant</v-icon>
-                        </v-btn>
-                        <span v-if="item.username == 'admin'">
-                            <v-btn color="red" icon disabled>
-                                <v-icon>mdi-delete</v-icon>
-                            </v-btn>
-                        </span>
-                        <span v-else>
-                            <v-btn color="red" @click="deleteItem(item)" icon>
-                                <v-icon>mdi-delete</v-icon>
-                            </v-btn>
-                        </span>
-                    </td>
-                </tr>
+        
+        <!-- Toolbar Responsif -->
+        <v-card-text class="pa-4">
+            <v-row class="mb-2">
+                <!-- Kolom Button Tambah -->
+                <v-col cols="12" md="4" class="py-0">
+                    <v-btn 
+                        color="indigo" 
+                        dark 
+                        large 
+                        @click="modalAddOpen" 
+                        elevation="2" 
+                        class="rounded-pill"
+                        block
+                    >
+                        <v-icon left>mdi-account-plus-outline</v-icon> <?= lang('App.add') ?>
+                    </v-btn>
+                </v-col>
+                
+                <!-- Kolom Search Field -->
+                <v-col cols="12" md="8" class="py-0">
+                    <v-text-field 
+                        v-model="search" 
+                        append-icon="mdi-magnify" 
+                        label="Cari Username atau Email..." 
+                        single-line 
+                        hide-details 
+                        outlined 
+                        dense 
+                        class="mt-2"
+                        clearable
+                    >
+                    </v-text-field>
+                </v-col>
+            </v-row>
+        </v-card-text>
+        
+        <!-- Data Table (Responsive & Rapi) -->
+        <v-data-table 
+            :headers="headers" 
+            :items="users" 
+            :items-per-page="10" 
+            :loading="loading" 
+            :search="search" 
+            class="elevation-0 px-4 pb-4 my-4 pt-0" 
+            loading-text="Sedang memuat... Harap tunggu" 
+            dense
+        >
+            <template v-slot:item.id="{ item, index }">
+                {{ index + 1 }}
+            </template>
+            <template v-slot:item.user_type="{ item }">
+                <!-- Select Role (Tampilan lebih clean) -->
+                <span v-if="item.username == 'admin'">
+                    <v-select v-model="item.user_type" :items="roles" item-text="label" item-value="value" dense disabled hide-details></v-select>
+                </span>
+                <span v-else>
+                    <v-select v-model="item.user_type" :items="roles" item-text="label" item-value="value" dense @change="setRole(item)" hide-details></v-select>
+                </span>
+            </template>
+            <template v-slot:item.is_active="{ item }">
+                <!-- Switch Aktif -->
+                <span v-if="item.username == 'admin'">
+                    <v-switch v-model="item.is_active" false-value="0" true-value="1" color="success" disabled hide-details class="mt-0"></v-switch>
+                </span>
+                <span v-else>
+                    <v-switch v-model="item.is_active" false-value="0" true-value="1" color="success" @change="setActive(item)" hide-details class="mt-0"></v-switch>
+                </span>
+            </template>
+            <template v-slot:item.actions="{ item }">
+                <v-btn color="indigo" class="mr-1" small icon @click="editItem(item)" title="Edit Profil">
+                    <v-icon small>mdi-pencil-outline</v-icon>
+                </v-btn>
+                <v-btn color="blue-grey" class="mr-1" small icon @click="changePassword(item)" title="Ganti Password">
+                    <v-icon small>mdi-key-variant</v-icon>
+                </v-btn>
+                <span v-if="item.username == 'admin'">
+                    <v-btn color="red" small icon disabled>
+                        <v-icon small>mdi-delete</v-icon>
+                    </v-btn>
+                </span>
+                <span v-else>
+                    <v-btn color="red" small icon @click="deleteItem(item)" title="Hapus Pengguna">
+                        <v-icon small>mdi-delete</v-icon>
+                    </v-btn>
+                </span>
             </template>
         </v-data-table>
     </v-card>
-    <!-- End Table List -->
 </template>
 
-<!-- Modal Add -->
+<!-- Modal Add User -->
 <template>
     <v-row justify="center">
         <v-dialog v-model="modalAdd" persistent max-width="700px">
-            <v-card>
-                <v-card-title><?= lang('App.add') ?> User
+            <v-card class="rounded-xl">
+                <v-card-title class="text-h6 white--text primary">
+                    <v-icon left dark>mdi-account-plus-outline</v-icon> <?= lang('App.add') ?> User
                     <v-spacer></v-spacer>
-                    <v-btn icon @click="modalAddClose">
+                    <v-btn icon dark @click="modalAddClose">
                         <v-icon>mdi-close</v-icon>
                     </v-btn>
                 </v-card-title>
-                <v-divider></v-divider>
                 <v-card-text class="py-5">
                     <v-form v-model="valid" ref="form">
-                        <v-text-field v-model="email" :rules="[rules.email]" label="E-mail" :error-messages="emailError" outlined></v-text-field>
+                        <v-text-field v-model="email" :rules="[rules.email]" label="E-mail" :error-messages="emailError" outlined dense></v-text-field>
 
-                        <v-text-field v-model="userName" label="Username" maxlength="20" :error-messages="usernameError" outlined required></v-text-field>
+                        <v-text-field v-model="userName" label="Username" maxlength="20" :error-messages="usernameError" outlined dense required></v-text-field>
 
-                        <v-text-field label="Nama Lengkap *" v-model="fullname" :error-messages="fullnameError" outlined></v-text-field>
+                        <v-text-field label="Nama Lengkap" v-model="fullname" :error-messages="fullnameError" outlined dense></v-text-field>
+                        
+                        <v-divider class="my-4"></v-divider>
+                        <p class="mb-2 text-subtitle-1 font-weight-medium grey--text text--darken-2">Password</p>
 
-                        <v-text-field v-model="password" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[rules.min]" :type="show1 ? 'text' : 'password'" label="Password" hint="<?= lang('App.minChar') ?>" counter @click:append="show1 = !show1" :error-messages="passwordError" outlined></v-text-field>
+                        <v-text-field v-model="password" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[rules.min]" :type="show1 ? 'text' : 'password'" label="Password" hint="<?= lang('App.minChar') ?>" counter @click:append="show1 = !show1" :error-messages="passwordError" outlined dense></v-text-field>
 
-                        <v-text-field block v-model="verify" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[passwordMatch]" :type="show1 ? 'text' : 'password'" label="Confirm Password" counter @click:append="show1 = !show1" outlined></v-text-field>
+                        <v-text-field block v-model="verify" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[passwordMatch]" :type="show1 ? 'text' : 'password'" label="Confirm Password" counter @click:append="show1 = !show1" outlined dense :error-messages="verifyError"></v-text-field>
                     </v-form>
                 </v-card-text>
                 <v-divider></v-divider>
-                <v-card-actions>
+                <v-card-actions class="py-3">
                     <v-spacer></v-spacer>
-                    <v-btn large color="primary" @click="saveUser" :loading="loading">
-                        <v-icon>mdi-content-save</v-icon> <?= lang('App.save') ?>
+                    <v-btn large color="primary" @click="saveUser" :loading="loading" elevation="2">
+                        <v-icon left>mdi-content-save</v-icon> <?= lang('App.save') ?>
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
     </v-row>
 </template>
-<!-- End Modal Add -->
 
-<!-- Modal Edit -->
+<!-- Modal Edit User -->
 <template>
     <v-row justify="center">
         <v-dialog v-model="modalEdit" persistent max-width="700px">
-            <v-card>
-                <v-card-title><?= lang('App.editUser') ?> {{emailEdit}}
+            <v-card class="rounded-xl">
+                <v-card-title class="text-h6 white--text teal darken-1">
+                    <v-icon left dark>mdi-pencil-box-multiple</v-icon> <?= lang('App.editUser') ?> {{emailEdit}}
                     <v-spacer></v-spacer>
-                    <v-btn icon @click="modalEditClose">
+                    <v-btn icon dark @click="modalEditClose">
                         <v-icon>mdi-close</v-icon>
                     </v-btn>
                 </v-card-title>
-                <v-divider></v-divider>
                 <v-card-text class="py-5">
                     <v-form ref="form" v-model="valid">
-                        <v-alert v-if="notifType != ''" dismissible dense outlined :type="notifType">{{notifMessage}}</v-alert>
-                        <v-text-field label="Email *" v-model="emailEdit" :rules="[rules.email]" outlined></v-text-field>
+                        <v-text-field label="E-mail" v-model="emailEdit" :rules="[rules.email]" outlined dense :error-messages="emailError"></v-text-field>
 
-                        <v-text-field label="Username *" v-model="userNameEdit" :error-messages="usernameError" outlined disabled></v-text-field>
+                        <v-text-field label="Username" v-model="userNameEdit" :error-messages="usernameError" outlined dense disabled></v-text-field>
 
-                        <v-text-field label="Nama Lengkap *" v-model="fullnameEdit" :error-messages="fullnameError" outlined></v-text-field>
+                        <v-text-field label="Nama Lengkap" v-model="fullnameEdit" :error-messages="fullnameError" outlined dense></v-text-field>
                     </v-form>
                 </v-card-text>
                 <v-divider></v-divider>
-                <v-card-actions>
+                <v-card-actions class="py-3">
                     <v-spacer></v-spacer>
-                    <v-btn large color="primary" @click="updateUser" :loading="loading">
-                        <v-icon>mdi-content-save</v-icon> <?= lang('App.update') ?>
+                    <v-btn large color="teal darken-1" @click="updateUser" :loading="loading" elevation="2">
+                        <v-icon left>mdi-content-save</v-icon> <?= lang('App.update') ?>
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
     </v-row>
 </template>
-<!-- End Modal Edit -->
 
-<!-- Modal Password -->
+<!-- Modal Change Password -->
 <template>
     <v-row justify="center">
         <v-dialog v-model="modalPassword" persistent max-width="700px">
-            <v-card>
-                <v-card-title>Password {{emailEdit}}
+            <v-card class="rounded-xl">
+                <v-card-title class="text-h6 white--text blue-grey darken-2">
+                    <v-icon left dark>mdi-key-variant</v-icon> Ganti Password {{emailEdit}}
                     <v-spacer></v-spacer>
-                    <v-btn icon @click="changePassClose">
+                    <v-btn icon dark @click="changePassClose">
                         <v-icon>mdi-close</v-icon>
                     </v-btn>
                 </v-card-title>
-                <v-divider></v-divider>
                 <v-card-text class="py-5">
                     <v-form ref="form" v-model="valid">
+                        <v-text-field label="E-mail" v-model="emailEdit" :rules="[rules.email]" outlined dense disabled></v-text-field>
 
-                        <v-text-field label="Email *" v-model="emailEdit" :rules="[rules.email]" outlined disabled></v-text-field>
+                        <v-text-field v-model="password" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[rules.min]" :type="show1 ? 'text' : 'password'" label="Password Baru" hint="<?= lang('App.minChar') ?>" counter @click:append="show1 = !show1" :error-messages="passwordError" outlined dense></v-text-field>
 
-                        <v-text-field v-model="password" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[rules.min]" :type="show1 ? 'text' : 'password'" label="Password Baru" hint="<?= lang('App.minChar') ?>" counter @click:append="show1 = !show1" :error-messages="passwordError" outlined></v-text-field>
-
-                        <v-text-field block v-model="verify" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[passwordMatch]" :type="show1 ? 'text' : 'password'" label="Confirm Password" counter @click:append="show1 = !show1" :error-messages="verifyError" outlined ></v-text-field>
+                        <v-text-field block v-model="verify" :append-icon="show1 ? 'mdi-eye' : 'mdi-eye-off'" :rules="[passwordMatch]" :type="show1 ? 'text' : 'password'" label="Confirm Password" counter @click:append="show1 = !show1" outlined dense :error-messages="verifyError"></v-text-field>
                     </v-form>
                 </v-card-text>
                 <v-divider></v-divider>
-                <v-card-actions>
+                <v-card-actions class="py-3">
                     <v-spacer></v-spacer>
-                    <v-btn large color="primary" @click="updatePassword" :loading="loading">
-                        <v-icon>mdi-content-save</v-icon> <?= lang('App.update') ?>
+                    <v-btn large color="blue-grey darken-2" @click="updatePassword" :loading="loading" elevation="2">
+                        <v-icon left>mdi-content-save</v-icon> <?= lang('App.update') ?>
                     </v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
     </v-row>
 </template>
-<!-- End Modal -->
 
 <!-- Modal Delete -->
 <template>
     <v-row justify="center">
-        <v-dialog v-model="modalDelete" persistent max-width="600px">
-            <v-card class="pa-2">
+        <v-dialog v-model="modalDelete" persistent max-width="450px">
+            <v-card class="rounded-xl pa-2">
                 <v-card-title>
                     <v-icon color="error" class="mr-2" x-large>mdi-alert-octagon</v-icon> Konfirmasi Hapus
                 </v-card-title>
                 <v-card-text>
-                    <div class="mt-4">
-                        <h2 class="font-weight-medium"><?= lang('App.delConfirm') ?></h2>
+                    <div class="mt-2">
+                        <h3 class="font-weight-regular">Yakin hapus pengguna <b>{{ userNameDelete }}</b>? Tindakan ini tidak bisa dibatalkan.</h3>
                     </div>
                 </v-card-text>
-                <v-divider></v-divider>
                 <v-card-actions>
                     <v-spacer></v-spacer>
-                    <v-btn text large @click="modalDelete = false"><?= lang("App.no") ?></v-btn>
-                    <v-btn color="primary" dark large @click="deleteUser" :loading="loading"><?= lang("App.yes") ?></v-btn>
-                    <v-spacer></v-spacer>
+                    <v-btn large text @click="modalDelete = false">Batal</v-btn>
+                    <v-btn large color="red darken-2" dark @click="deleteUser" :loading="loading">Ya, Hapus</v-btn>
                 </v-card-actions>
             </v-card>
         </v-dialog>
@@ -198,35 +233,55 @@
 
 <?php $this->section("js") ?>
 <script>
-    // --- LOGIKA JWT LAMA DIHAPUS ---
-    // const token = JSON.parse(localStorage.getItem('access_token'));
-    // const options = { headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } };
-    // --- LOGIKA JWT LAMA DIHAPUS ---
-    
-    var errorKeys = []
+    // 💥 KOREKSI WAJIB: Amankan objek global sebelum merging
+    window.dataVue = window.dataVue || {};
+    window.methodsVue = window.methodsVue || {};
+    window.computedVue = window.computedVue || {};
 
-    window.dataVue = {
-        ...window.dataVue,
+    // 1. Gabungkan Data Spesifik User ke window.dataVue
+    Object.assign(window.dataVue, {
+        // --- Properti Default Layout yang WAJIB ada (Anti-ReferenceError) ---
+        snackbar: false,
+        timeout: 4000, 
+        snackbarType: '',
+        snackbarMessage: '',
+        valid: true, // Untuk Form Validasi
+        
+        // --- Properti Spesifik View User ---
         search: "",
+        loading: false, 
+        modalAdd: false,
+        modalEdit: false,
+        modalDelete: false,
+        modalPassword: false,
+        show1: false, // Untuk toggle password
+        
+        // Data Headers
         headers: [{
-            text: '# ',
-            value: 'id'
+            text: 'No.', // Diubah dari '# '
+            value: 'id',
+            width: '5%',
+            sortable: false, // 💥 KOREKSI: Matikan sorting untuk kolom nomor
         }, {
             text: 'E-mail',
             value: 'email'
         }, {
             text: 'Username',
-            value: 'username'
+            value: 'username',
+            width: '15%'
         }, {
             text: 'Role',
-            value: 'user_type'
+            value: 'user_type',
+            width: '15%'
         }, {
             text: '<?= lang("App.active") ?>',
-            value: 'is_active'
+            value: 'is_active',
+            width: '10%'
         }, {
             text: '<?= lang('App.action') ?>',
             value: 'actions',
-            sortable: false
+            sortable: false,
+            width: '15%'
         }, ],
         users: [],
         roles: [{
@@ -236,24 +291,23 @@
             label: 'User',
             value: '2'
         }, ],
-        modalAdd: false,
-        modalEdit: false,
-        modalDelete: false,
-        modalPassword: false,
+        
+        // Data Form Input
         userName: "",
         email: "",
         fullname: "",
-        user_type: "",
-        is_active: "",
+        password: "",
+        verify: "",
+        
+        // Data Edit & Delete
         userIdEdit: "",
         userNameEdit: "",
         emailEdit: "",
         fullnameEdit: "",
         userIdDelete: "",
         userNameDelete: "",
-        show1: false,
-        password: "",
-        verify: "",
+        
+        // Data Error Messages
         verifyError: "",
         emailError: "",
         fullnameError: "",
@@ -261,59 +315,68 @@
         passwordError: "",
         user_typeError: "",
         is_activeError: "",
-    }
+    });
 
-    window.createdVue = function() {
-        this.getUsers();
-    }
-
-    window.computedVue = {
-        ...window.computedVue,
-        passwordMatch() {
+    // 2. Gabungkan Computed Properties
+    Object.assign(window.computedVue, {
+        passwordMatch: function() {
+            // Gunakan arrow function jika lo ingin this.password diakses
             return () => this.password === this.verify || "<?= lang('App.samePassword') ?>";
         }
-    }
+    });
 
-    window.methodsVue = {
-        ...window.methodsVue,
+    // 3. Gabungkan Methods Spesifik User ke window.methodsVue
+    Object.assign(window.methodsVue, {
+        // Method helper untuk menampilkan Snackbar
+        showSnackbar: function(message, type = 'success') {
+            this.snackbarMessage = message;
+            this.snackbarType = type;
+            this.snackbar = true;
+        },
+
+        // Modal Add
         modalAddOpen: function() {
             this.modalAdd = true;
-            this.notifType = "";
+            if (this.$refs.form) {
+                this.$refs.form.resetValidation();
+                this.$refs.form.reset();
+            }
         },
         modalAddClose: function() {
-            this.userName = "";
-            this.email = "";
             this.modalAdd = false;
-            this.$refs.form.resetValidation();
+            if (this.$refs.form) {
+                this.$refs.form.resetValidation();
+            }
         },
-
+        
         // Get User
         getUsers: function() {
             this.loading = true;
-            // AXIOS POLOS
             axios.get('<?= base_url(); ?>/api/user')
                 .then(res => {
-                    // handle success
                     this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        this.users = data.data;
+                        // Pastikan is_active di-set sebagai string
+                        this.users = data.data.map(user => ({
+                            ...user,
+                            is_active: String(user.is_active) 
+                        }));
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                     }
                 })
                 .catch(err => {
-                    // handle error - 403/401 akan ditangani global
                     console.error("Error fetching users:", err.response);
+                    this.showSnackbar('Gagal memuat data pengguna.', 'error');
                     this.loading = false;
                 })
         },
 
         // Save User
         saveUser: function() {
+            if (!this.$refs.form.validate()) return;
             this.loading = true;
-            // AXIOS POLOS
             axios.post('<?= base_url(); ?>/api/user/save', {
                     email: this.email,
                     username: this.userName,
@@ -321,38 +384,22 @@
                     password: this.password,
                 })
                 .then(res => {
-                    // handle success
-                    this.loading = false
+                    this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'success');
                         this.getUsers();
-                        this.userName = "";
-                        this.email = "";
-                        this.fullname = "";
-                        this.password = "";
-                        this.modalAdd = false;
-                        this.$refs.form.resetValidation();
+                        this.modalAddClose();
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                         errorKeys = Object.keys(data.data);
-                        errorKeys.map((el) => {
-                            this[`${el}Error`] = data.data[el];
-                        });
-                        if (errorKeys.length > 0) {
-                            setTimeout(() => this.notifType = "", 4000);
-                            setTimeout(() => errorKeys.map((el) => {
-                                this[`${el}Error`] = "";
-                            }), 4000);
-                        }
-                        this.modalAdd = true;
-                        this.$refs.form.validate();
+                        errorKeys.forEach((el) => { this[`${el}Error`] = data.data[el]; });
+                        setTimeout(() => { errorKeys.forEach((el) => { this[`${el}Error`] = ""; }); }, 4000);
                     }
                 })
                 .catch(err => {
                     console.error("Error saving user:", err.response);
+                    this.showSnackbar('Gagal menyimpan pengguna.', 'error');
                     this.loading = false;
                 })
         },
@@ -364,50 +411,38 @@
             this.userNameEdit = user.username;
             this.emailEdit = user.email;
             this.fullnameEdit = user.fullname;
+            if (this.$refs.form) this.$refs.form.resetValidation();
         },
         modalEditClose: function() {
             this.modalEdit = false;
-            this.$refs.form.resetValidation();
+            if (this.$refs.form) this.$refs.form.resetValidation();
         },
 
-        //Update
+        //Update User
         updateUser: function() {
+            if (!this.$refs.form.validate()) return;
             this.loading = true;
-            // AXIOS POLOS
             axios.put(`<?= base_url(); ?>/api/user/update/${this.userIdEdit}`, {
-                    user: this.userNameEdit,
                     email: this.emailEdit,
                     fullname: this.fullnameEdit,
                 })
                 .then(res => {
-                    // handle success
                     this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'success');
                         this.getUsers();
-                        this.modalEdit = false;
-                        this.$refs.form.resetValidation();
+                        this.modalEditClose();
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                         errorKeys = Object.keys(data.data);
-                        errorKeys.map((el) => {
-                            this[`${el}Error`] = data.data[el];
-                        });
-                        if (errorKeys.length > 0) {
-                            setTimeout(() => this.notifType = "", 4000);
-                            setTimeout(() => errorKeys.map((el) => {
-                                this[`${el}Error`] = "";
-                            }), 4000);
-                        }
-                        this.modalEdit = true;
-                        this.$refs.form.validate();
+                        errorKeys.forEach((el) => { this[`${el}Error`] = data.data[el]; });
+                        setTimeout(() => { errorKeys.forEach((el) => { this[`${el}Error`] = ""; }); }, 4000);
                     }
                 })
                 .catch(err => {
                     console.error("Error updating user:", err.response);
+                    this.showSnackbar('Gagal update pengguna.', 'error');
                     this.loading = false;
                 })
         },
@@ -422,50 +457,39 @@
         // Delete
         deleteUser: function() {
             this.loading = true;
-            // AXIOS POLOS
             axios.delete(`<?= base_url(); ?>/api/user/delete/${this.userIdDelete}`)
                 .then(res => {
-                    // handle success
                     this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'success');
                         this.getUsers();
                         this.modalDelete = false;
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        this.modalDelete = true;
+                        this.showSnackbar(data.message, 'error');
                     }
                 })
                 .catch(err => {
                     console.error("Error deleting user:", err.response);
+                    this.showSnackbar('Gagal hapus pengguna.', 'error');
                     this.loading = false;
                 })
         },
 
-        // Set Item Active
+        // Set Active
         setActive: function(item) {
+            // Nilai item.is_active sudah berubah karena v-switch @click
             this.loading = true;
-            this.userIdEdit = item.id_login;
-            this.active = item.active;
-            // AXIOS POLOS
-            axios.put(`<?= base_url(); ?>/api/user/setactive/${this.userIdEdit}`, {
-                    is_active: item.is_active, // Ambil nilai is_active terbaru dari item Vue
+            axios.put(`<?= base_url(); ?>/api/user/setactive/${item.id}`, {
+                    is_active: item.is_active, 
                 })
                 .then(res => {
-                    // handle success
                     this.loading = false;
-                    var data = res.data;
-                    if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        this.getUsers();
-                    }
+                    this.showSnackbar(res.data.message, res.data.status ? 'success' : 'error');
                 })
                 .catch(err => {
                     console.error("Error setting active status:", err.response);
+                    this.showSnackbar('Gagal set status aktif.', 'error');
                     this.loading = false;
                 })
         },
@@ -473,24 +497,16 @@
         // Set Role
         setRole: function(item) {
             this.loading = true;
-            this.userIdEdit = item.id_login;
-            this.user_type = item.user_type;
-            // AXIOS POLOS
-            axios.put(`<?= base_url(); ?>/api/user/setrole/${this.userIdEdit}`, {
-                    user_type: item.user_type, // Ambil nilai user_type terbaru dari item Vue
+            axios.put(`<?= base_url(); ?>/api/user/setrole/${item.id}`, {
+                    user_type: item.user_type, 
                 })
                 .then(res => {
-                    // handle success
                     this.loading = false;
-                    var data = res.data;
-                    if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        this.getUsers();
-                    }
+                    this.showSnackbar(res.data.message, res.data.status ? 'success' : 'error');
                 })
                 .catch(err => {
                     console.error("Error setting role:", err.response);
+                    this.showSnackbar('Gagal set role.', 'error');
                     this.loading = false;
                 })
         },
@@ -502,54 +518,54 @@
             this.userNameEdit = user.username;
             this.emailEdit = user.email;
             this.fullnameEdit = user.fullname;
+            this.password = ""; // Clear form
+            this.verify = ""; // Clear form
+            if (this.$refs.form) this.$refs.form.resetValidation();
         },
         changePassClose: function() {
             this.modalPassword = false;
-            this.$refs.form.resetValidation();
+            if (this.$refs.form) this.$refs.form.resetValidation();
         },
 
         updatePassword() {
+            if (!this.$refs.form.validate()) return;
             this.loading = true;
-            // AXIOS POLOS
             axios.post('<?= base_url() ?>/api/user/changepassword', {
+                    // 💥 KOREKSI: Tambahkan ID pengguna yang akan diubah password-nya
+                    id: this.userIdEdit, 
                     email: this.emailEdit,
                     password: this.password,
                     verify: this.verify
                 })
                 .then(res => {
-                    // handle success
                     this.loading = false
                     var data = res.data;
                     if (data.status == true) {
-                        this.submitted = true;
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        this.password = "";
-                        this.verify = "";
-                        this.modalPassword = false;
-                        this.$refs.form.resetValidation();
+                        this.showSnackbar(data.message, 'success');
+                        this.changePassClose();
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                         errorKeys = Object.keys(data.data);
-                        errorKeys.map((el) => {
-                            this[`${el}Error`] = data.data[el];
-                        });
-                        if (errorKeys.length > 0) {
-                            setTimeout(() => this.notifType = "", 4000);
-                            setTimeout(() => errorKeys.map((el) => {
-                                this[`${el}Error`] = "";
-                            }), 4000);
-                        }
-                        this.modalPassword = true;
-                        this.$refs.form.validate();
+                        errorKeys.forEach((el) => { this[`${el}Error`] = data.data[el]; });
+                        setTimeout(() => { errorKeys.forEach((el) => { this[`${el}Error`] = ""; }); }, 4000);
                     }
                 })
                 .catch(err => {
                     console.error("Error changing password:", err.response);
+                    this.showSnackbar('Gagal ganti password.', 'error');
                     this.loading = false
                 })
         },
-    }
+    });
+
+    // 3. Created Hook
+    window.createdVue = function() {
+        // Panggil created hook default dari layout jika ada
+        if (typeof window.defaultCreatedVue === 'function') {
+            window.defaultCreatedVue.call(this);
+        }
+        this.getUsers();
+        console.log("User View: Data Loaded");
+    };
 </script>
 <?php $this->endSection("js") ?>

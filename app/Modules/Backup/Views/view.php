@@ -1,77 +1,120 @@
 <?php $this->extend("layouts/backend"); ?>
 <?php $this->section("content"); ?>
 <template>
-    <h1 class="mb-3 font-weight-medium"><?= $title ?></h1>
-    <v-card>
-        <v-card-title>
-            <v-btn large color="primary" dark @click="saveBackup" elevation="1">
-                <v-icon>mdi-database-plus</v-icon> Backup Now
-            </v-btn>
-            <v-spacer></v-spacer>
-            <v-text-field v-model="search" append-icon="mdi-magnify" label="Search" single-line hide-details>
-            </v-text-field>
+    <!-- Card Kontainer Utama -->
+    <v-card class="rounded-xl elevation-4">
+        
+        <!-- Header Halaman -->
+        <v-card-title class="pa-4 grey lighten-5">
+            <v-icon left color="indigo">mdi-database</v-icon>
+            <h1 class="font-weight-bold text-h5 grey--text text--darken-3"><?= $title ?></h1>
         </v-card-title>
-                <v-data-table 
+        
+        <!-- Toolbar Responsif -->
+        <v-card-text class="pa-4">
+            <v-row class="mb-2">
+                <!-- Kolom Button Backup Now -->
+                <v-col cols="12" md="4" class="py-0">
+                    <v-btn 
+                        large 
+                        color="primary" 
+                        dark 
+                        @click="saveBackup" 
+                        elevation="2"
+                        class="rounded-pill"
+                        block
+                        :loading="loading"
+                    >
+                        <v-icon left>mdi-database-plus</v-icon> Backup Now
+                    </v-btn>
+                </v-col>
+                
+                <!-- Kolom Search Field -->
+                <v-col cols="12" md="8" class="py-0">
+                    <v-text-field 
+                        v-model="search" 
+                        append-icon="mdi-magnify" 
+                        label="Cari File atau Tanggal..." 
+                        single-line 
+                        hide-details 
+                        outlined 
+                        dense 
+                        class="mt-2"
+                        clearable
+                    >
+                    </v-text-field>
+                </v-col>
+            </v-row>
+        </v-card-text>
+        
+        <!-- Data Table (Responsive & Rapi) -->
+        <v-data-table 
             :headers="dataTable" 
             :items="dataBackup" 
             :items-per-page="10" 
             :loading="loading" 
             :search="search" 
-            loading-text="Sedang memuat... Harap tunggu">
-
-            <!-- Vuetify akan merender kolom ID, File Name, File Path, dan Tanggal secara OTOMATIS -->
+            class="elevation-0 px-4 pb-4 my-4 pt-0" 
+            loading-text="Sedang memuat... Harap tunggu"
+        >
+            <template v-slot:item.id="{ item, index }">
+                {{ index + 1 }} 
+            </template>
+            <template v-slot:item.created_at="{ item }">
+                <v-chip small color="blue-grey lighten-5" class="font-weight-medium">{{ item.created_at }}</v-chip>
+            </template>
             
             <!-- Custom Slot untuk Kolom 'Aksi' (value: actions) -->
             <template v-slot:item.actions="{ item }">
-                <v-btn color="primary" @click="downloadItem(item)" icon>
-                    <v-icon>mdi-download</v-icon>
+                <v-btn color="success" @click="downloadItem(item)" small icon title="Download File">
+                    <v-icon small>mdi-download</v-icon>
                 </v-btn>
-                <v-btn color="error" @click="deleteItem(item)" icon>
-                    <v-icon>mdi-delete</v-icon>
+                <v-btn color="error" @click="deleteItem(item)" small icon title="Hapus File">
+                    <v-icon small>mdi-delete-empty-outline</v-icon>
                 </v-btn>
             </template>
             
         </v-data-table>
     </v-card>
-</template>
+    
+    <!-- Modal Delete -->
+    <template>
+        <v-row justify="center">
+            <v-dialog v-model="modalDelete" persistent max-width="450px">
+                <v-card class="rounded-xl pa-2">
+                    <v-card-title>
+                        <v-icon color="error" class="mr-2" x-large>mdi-alert-octagon</v-icon> Konfirmasi Hapus
+                    </v-card-title>
+                    <v-card-text>
+                        <div class="mt-2">
+                            <h3 class="font-weight-regular">Yakin hapus file backup ini? Tindakan ini tidak bisa dibatalkan.</h3>
+                        </div>
+                    </v-card-text>
+                    <v-card-actions>
+                        <v-spacer></v-spacer>
+                        <v-btn large text @click="modalDelete = false">Batal</v-btn>
+                        <v-btn large color="red darken-2" dark @click="deleteData" :loading="loading">Ya, Hapus</v-btn>
+                    </v-card-actions>
+                </v-card>
+            </v-dialog>
+        </v-row>
+    </template>
+    <!-- End Modal Delete -->
 
-<!-- Modal Delete -->
-<template>
-    <v-row justify="center">
-        <v-dialog v-model="modalDelete" persistent max-width="600px">
-            <v-card class="pa-2">
-                <v-card-title><v-icon color="error" class="mr-2" x-large>mdi-alert-octagon</v-icon> Konfirmasi Hapus</v-card-title>
-                <v-divider></v-divider>
-                <v-card-text>
-                    <div class="mt-5 py-4">
-                        <h3 class="mb-3">Apakah anda yakin ingin menghapus?</h3>
-                    </div>
-                </v-card-text>
-                <v-divider></v-divider>
-                <v-card-actions>
-                    <v-spacer></v-spacer>
-                    <v-btn @click="modalDelete = false" elevation="0" large>Tutup</v-btn>
-                    <v-btn color="red" dark @click="deleteData" :loading="loading" elevation="0" large>Hapus</v-btn>
-                    <v-spacer></v-spacer>
-                </v-card-actions>
-            </v-card>
-        </v-dialog>
-    </v-row>
+    <v-dialog v-model="loading2" hide-overlay persistent width="300">
+        <v-card class="rounded-lg">
+            <v-card-text class="pt-3">
+                Memuat, silahkan tunggu...
+                <v-progress-linear indeterminate color="primary" class="mb-0"></v-progress-linear>
+            </v-card-text>
+        </v-card>
+    </v-dialog>
 </template>
-<!-- End Modal Delete -->
-
-<v-dialog v-model="loading2" hide-overlay persistent width="300">
-    <v-card>
-        <v-card-text class="pt-3">
-            Memuat, silahkan tunggu...
-            <v-progress-linear indeterminate color="primary" class="mb-0"></v-progress-linear>
-        </v-card-text>
-    </v-card>
-</v-dialog>
 <?php $this->endSection("content") ?>
 
 <?php $this->section("js") ?>
 <script>
+    // Helper function to convert Base64 to Blob (dipertahankan)
     function b64toBlob(b64Data, contentType, sliceSize) {
         contentType = contentType || '';
         sliceSize = sliceSize || 512;
@@ -98,18 +141,33 @@
         return blob;
     }
 
-    // --- LOGIKA JWT LAMA DIHAPUS ---
-    // const token = JSON.parse(localStorage.getItem('access_token'));
-    // const options = { headers: { "Authorization": `Bearer ${token}`, "Content-Type": "application/json" } };
-    // --- LOGIKA JWT LAMA DIHAPUS ---
+    // 💥 KOREKSI WAJIB: Amankan objek global sebelum merging
+    window.dataVue = window.dataVue || {};
+    window.methodsVue = window.methodsVue || {};
+    window.computedVue = window.computedVue || {};
 
-    window.dataVue = {
-        ...window.dataVue,
+    // 1. Gabungkan Data Spesifik Backup ke window.dataVue
+    Object.assign(window.dataVue, {
+        // --- Properti Default Layout yang WAJIB ada (Anti-ReferenceError) ---
+        snackbar: false,
+        timeout: 4000, 
+        snackbarType: '',
+        snackbarMessage: '',
+        valid: true, 
+        
+        // --- Properti Spesifik View Backup ---
         modalDelete: false,
         dataBackup: [],
+        idBackup: "",
+        search: "",
+        loading: false, // Loading utama
+        loading2: false, // Loading untuk download/proses
+        
         dataTable: [{
-                text: 'ID',
-                value: 'id'
+                text: 'No.', // Diubah dari 'ID'
+                value: 'id',
+                width: '5%',
+                sortable: false
             }, {
                 text: 'File Name',
                 value: 'file_name'
@@ -120,74 +178,66 @@
             },
             {
                 text: 'Tanggal',
-                value: 'created_at'
+                value: 'created_at',
+                width: '20%'
             },
             {
                 text: 'Aksi',
                 value: 'actions',
-                sortable: false
+                sortable: false,
+                width: '15%'
             },
         ],
-        idBackup: "",
-    }
+    });
 
-    var errorKeys = []
+    // 2. Gabungkan Methods Spesifik Backup ke window.methodsVue
+    Object.assign(window.methodsVue, {
+        // Method helper untuk menampilkan Snackbar
+        showSnackbar: function(message, type = 'success') {
+            this.snackbarMessage = message;
+            this.snackbarType = type;
+            this.snackbar = true;
+        },
 
-    window.createdVue = function() {
-        if (typeof window.defaultCreatedVue !== 'undefined') {
-            window.defaultCreatedVue.call(this); // Mengatur konteks 'this'
-        }
-        this.getBackup();
-    }
-
-    window.methodsVue = {
-        ...window.methodsVue,
-        // Get
+        // Get Data
         getBackup: function() {
             this.loading = true;
-            // AXIOS POLOS
             axios.get('<?= base_url() ?>/api/backup')
                 .then(res => {
-                    // handle success
                     this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        //this.snackbar = true;
-                        //this.snackbarMessage = data.message;
-                        this.dataBackup = data.data;
+                        this.dataBackup = data.data || [];
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
+                        this.dataBackup = [];
                     }
                 })
                 .catch(err => {
-                    // Cukup log error. Filter 401/403 akan menangani redirect global.
                     console.error("Error fetching backup list:", err.response);
+                    this.showSnackbar('Gagal memuat daftar backup.', 'error');
                     this.loading = false;
+                    this.dataBackup = [];
                 })
         },
 
-        // Save Data
+        // Save Data (Backup Now)
         saveBackup: function() {
             this.loading = true;
-            // AXIOS POLOS
             axios.post(`<?= base_url() ?>/api/backup/save`, {})
                 .then(res => {
-                    // handle success
                     this.loading = false
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'success');
                         this.getBackup();
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                     }
                 })
                 .catch(err => {
-                    // Cukup log error. Filter 401/403 akan menangani redirect global.
                     console.error("Error creating backup:", err.response);
+                    this.showSnackbar('Gagal membuat backup. Cek logs server.', 'error');
                     this.loading = false;
                 })
         },
@@ -195,40 +245,23 @@
         // Download
         downloadItem: function(item) {
             this.loading2 = true;
-            this.idBackup = item.id;
-            // AXIOS POLOS
             axios.post(`<?= base_url()?>/api/backup/download`, {
-                    id: this.idBackup
+                    id: item.id
                 })
                 .then(res => {
-                    // handle success
                     this.loading2 = false
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        // LANGSUNG GUNAKAN WINDOW LOCATION UNTUK DOWNLOAD
+                        this.showSnackbar(data.message, 'success');
+                        // LANGSUNG GUNAKAN WINDOW LOCATION UNTUK DOWNLOAD FILE
                         window.location.href = data.data.url;
-                        
-                        // NOTE: Logic download file di bawah ini tidak efektif untuk file besar 
-                        // dan tidak perlu karena server mengembalikan URL file.
-                        /*
-                        var fileURL = window.URL.createObjectURL(new Blob([data.data.url]));
-                        var fileLink = document.createElement('a');
-                        fileLink.href = fileURL;
-                        fileLink.setAttribute('download', data.data.filename);
-                        document.body.appendChild(fileLink);
-                        fileLink.click();
-                        */
-
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'error');
                     }
                 })
                 .catch(err => {
-                    // Cukup log error. Filter 401/403 akan menangani redirect global.
                     console.error("Error downloading file:", err.response);
+                    this.showSnackbar('Gagal download file.', 'error');
                     this.loading2 = false;
                 })
         },
@@ -243,29 +276,34 @@
         // Delete
         deleteData: function() {
             this.loading = true;
-            // AXIOS POLOS
             axios.delete(`<?= base_url() ?>/api/backup/delete/${this.idBackup}`)
                 .then(res => {
-                    // handle success
                     this.loading = false;
                     var data = res.data;
                     if (data.status == true) {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
+                        this.showSnackbar(data.message, 'success');
                         this.getBackup();
                         this.modalDelete = false;
                     } else {
-                        this.snackbar = true;
-                        this.snackbarMessage = data.message;
-                        this.modalDelete = true;
+                        this.showSnackbar(data.message, 'error');
                     }
                 })
                 .catch(err => {
-                    // Cukup log error. Filter 401/403 akan menangani redirect global.
                     console.error("Error deleting backup:", err.response);
+                    this.showSnackbar('Gagal menghapus file backup.', 'error');
                     this.loading = false;
                 })
         },
-    }
+    });
+
+    // 3. Created Hook
+    window.createdVue = function() {
+        // Panggil created hook default dari layout jika ada
+        if (typeof window.defaultCreatedVue === 'function') {
+            window.defaultCreatedVue.call(this);
+        }
+        this.getBackup();
+        console.log("Backup View: Data Loaded");
+    };
 </script>
 <?php $this->endSection("js") ?>
