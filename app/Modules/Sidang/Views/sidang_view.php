@@ -3,14 +3,17 @@
 $base_url = base_url();
 
 // --- PENTING: ASUMSI VARIABEL DARI CONTROLLER ---
+// Jika variabel tidak disetel dari Controller, gunakan nilai default
 $nama_instansi_app = $nama_instansi_app ?? 'INSTANSI ERROR'; 
 $path_logo_instansi_db = $path_logo_instansi ?? 'images/default_logo.png'; 
 $nip_user = $nip_user ?? '-';
+$nama_pegawai = $nama_pegawai ?? '-'; // Tambahkan default
 $opt_tanggal = $opt_tanggal ?? [];
 
-// KOREKSI PATH FINAL
+// KOREKSI PATH FINAL LOGO
+// Menghapus trailing slash dari base_url dan leading slash dari path logo, lalu menggabungkannya.
 $base_url_clean = rtrim($base_url, '/'); 
-$path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/'); 
+$path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); // Path logo juga di-esc
 // --- END ASUMSI ---
 ?>
 <!DOCTYPE html>
@@ -364,17 +367,19 @@ $path_logo = $base_url_clean . '/' . ltrim($path_logo_instansi_db, '/');
 </head>
 <body>
 
-    <nav class="navbar navbar-expand-lg">
-        <div class="container">
-            <a class="navbar-brand" href="#">
-                <img src="<?= esc($path_logo) ?>" onerror="this.onerror=null;this.src='<?= $base_url_clean . '/images/default_logo.png' ?>';" alt="Logo Instansi" class="navbar-logo">
-                <span><?= esc($nama_instansi_app) ?></span>
-            </a>
-            <div class="ms-auto">
-                <a href="<?= $base_url . 'home'; ?>" class="btn btn-outline-light btn-sm">Kembali ke Dashboard</a>
-            </div>
+<nav class="navbar navbar-expand-lg">
+    <div class="container">
+        <a class="navbar-brand" href="#">
+            <img src="<?= esc($path_logo) ?>" 
+                 onerror="this.onerror=null;this.src='<?= $base_url_clean . '/images/default_logo.png' ?>';" 
+                 alt="Logo Instansi" class="navbar-logo">
+            <span><?= esc($nama_instansi_app) ?></span>
+        </a>
+        <div class="ms-auto">
+            <a href="<?= $base_url . 'home'; ?>" class="btn btn-outline-light btn-sm">Kembali ke Dashboard</a>
         </div>
-    </nav>
+    </div>
+</nav>
 
     <div class="main-container">
         <div class="card-custom">
