@@ -366,7 +366,6 @@ $path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); //
     </style>
 </head>
 <body>
-
 <nav class="navbar navbar-expand-lg">
     <div class="container">
         <a class="navbar-brand" href="#">
@@ -375,12 +374,22 @@ $path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); //
                  alt="Logo Instansi" class="navbar-logo">
             <span><?= esc($nama_instansi_app) ?></span>
         </a>
-        <div class="ms-auto">
-            <a href="<?= $base_url . 'home'; ?>" class="btn btn-outline-light btn-sm">Kembali ke Dashboard</a>
+        
+        <div class="ms-auto d-flex align-items-center"> 
+            
+            <a href="<?= $base_url . '/'; ?>" class="btn btn-outline-light btn-sm me-2">
+                 <i class="fa-solid fa-home me-1"></i> Kembali ke Dashboard
+            </a>
+            
+            <a href="<?= site_url('sidang/logout'); ?>" class="btn btn-danger btn-sm" 
+               onclick="return confirm('Anda yakin ingin keluar dan mengakhiri ?');">
+                 <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
+            </a>
         </div>
     </div>
 </nav>
 
+    <div class="main-container">
     <div class="main-container">
         <div class="card-custom">
             

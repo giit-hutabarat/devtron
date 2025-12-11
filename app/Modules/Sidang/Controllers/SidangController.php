@@ -5,7 +5,7 @@ namespace App\Modules\Sidang\Controllers;
 use App\Controllers\BaseController;
 use App\Modules\Sidang\Models\SidangModel;
 use App\Modules\Sidang\Models\SidangAdminModel; 
-use App\Libraries\Settings; // Dipakai!
+use App\Libraries\Settings;
 use Google\Client;
 use Google\Service\Sheets;
 use PhpOffice\PhpWord\TemplateProcessor;
@@ -82,17 +82,18 @@ class SidangController extends BaseController
         }
         
         $namaInstansi = 'NAMA INSTANSI DEFAULT';
-        $logoInstansi = base_url('assets/images/default_logo.png');
+        $logoPath = 'images/logo_kejaksaan.png';
     if ($this->setting !== null) {
         // ✅ AKTIFKAN DAN KOREKSI INI
         try {
+            //key dari general database
             $namaInstansi = $this->setting->get('nama_instansi') ?? $namaInstansi;
-            $logo = $this->setting->get('logo');
-        
-            if (empty($logo)) {
-            $logoInstansi = base_url('$logo');
+            
+            //ambil logodb
+            $logoPathDb = $this->setting->get('logo');
+            if(!empty($logoPathDb)) {
+                $logoPath = $logoPathDb;
             }
-       
         } catch (\Throwable $e) {
             // Biarkan default jika error database saat get settings
         }
@@ -101,7 +102,7 @@ class SidangController extends BaseController
         $data = [
             'title' => 'Akses Cetak Berkas Sidang',
             'nama_instansi' => $namaInstansi,
-            'logo_instansi' => $logoInstansi,
+            'logo_instansi' => base_url(esc($logoPath)),
             
         ];
         return view('\App\Modules\Sidang\Views\access_form', $data); 
@@ -121,7 +122,7 @@ class SidangController extends BaseController
 
         // 2. Cek User
         if (!$adminUser || empty($adminUser['sidang_2fa_secret']) || $adminUser['is_active'] == 0) {
-            return $this->response->setJSON(['status' => false, 'message' => 'NIP tidak terdaftar untuk akses sidang atau belum dikonfigurasi.']);
+            return redirect()->to(site_url('sidang/access'))->with('error', 'NIP tidak terdaftar untuk akses sidang atau belum dikonfigurasi.');
         }
 
         $secret_key = $adminUser['sidang_2fa_secret'];
@@ -137,14 +138,15 @@ class SidangController extends BaseController
                     'sidang_nip' => $adminUser['nip'],
                     'userId' => $adminUser['id'] 
                 ]);
-                return $this->response->setJSON([
-                    'status' => true, 
-                    'redirect' => site_url('sidang'), 
-                    'message' => 'Akses berhasil.'
-                ]); 
+                //return $this->response->setJSON([
+                    //'status' => true, 
+                    //'redirect' => site_url('sidang'), 
+                    //'message' => 'Akses berhasil.'
+                //]); 
+                return redirect()->to(site_url('sidang'));
 
             } else {
-                return $this->response->setJSON(['status' => false, 'message' => 'Kode OTP tidak valid atau sudah kadaluarsa. Coba lagi.']);
+                return redirect()->to(site_url('sidang/access'))->with('error', 'Kode OTP tidak valid atau sudah kadaluarsa. Coba lagi.');
             }
         } catch (\Throwable $e) {
              return $this->response->setJSON(['status' => false, 'message' => 'Kesalahan Sistem Verifikasi.']);
@@ -166,19 +168,18 @@ class SidangController extends BaseController
         $settingsData = [
             'nama_aplikasi' => 'APP SIDANG',
             'nama_instansi' => 'INSTANSI ERROR',
-            'logo'          => 'images/default_logo.png',
+            'path_logo_instansi' => 'images/logo_kejaksaan.png',
             'alamat'        => '-',
+            'nip _user'      => session()->get('sidang_nip'),
         ];
 
         if ($this->setting !== null) {
              try {
                 // Menggunakan method get() dan null coalescing untuk keamanan
-                $settingsData = [
-                    'nama_aplikasi' => $this->setting->get('nama_aplikasi') ?? 'APP SIDANG',
-                    'nama_instansi' => $this->setting->get('nama_instansi') ?? 'INSTANSI ERROR',
-                    'logo'          => $this->setting->get('logo') ?? 'images/default_logo.png',
-                    'alamat'        => $this->setting->get('alamat') ?? '-',
-                ];
+                $settingsData['nama_aplikasi'] = $this->setting->get('nama_aplikasi') ?? $settingsData['nama_aplikasi'];
+                $settingsData['nama_instansi'] = $this->setting->get('nama_instansi') ?? $settingsData['nama_instansi']; 
+                $settingsData['path_logo_instansi'] = $this->setting->get('logo') ?? $settingsData['path_logo_instansi']; 
+                $settingsData['alamat'] = $this->setting->get('alamat') ?? $settingsData['alamat'];
             } catch (\Throwable $e) {
                 // Jika error terjadi saat GET (misalnya query database saat get), pakai default
             }
@@ -215,7 +216,7 @@ class SidangController extends BaseController
         $data = [
             'title'         => 'Cetak Sidang - ' . $settingsData['nama_aplikasi'],
             'nama_instansi_app' => $settingsData['nama_instansi'], 
-            'path_logo_instansi' => base_url($settingsData['logo']),         
+            'path_logo_instansi' => $settingsData['path_logo_instansi'],         
             'alamat'        => $settingsData['alamat'], 
 
             'opt_tanggal'   => $listTanggal, 
@@ -480,4 +481,12 @@ class SidangController extends BaseController
             $filesArr[$finalName] = $saveP;
         }
     }
+    public function logout()
+        {
+            // Hapus sesi spesifik Modul Sidang
+            session()->remove(['isLoggedInSidang', 'sidang_nip', 'userId']);
+            
+            // Redirect user kembali ke halaman login 2FA
+            return redirect()->to(site_url('sidang/access'))->with('success', 'Anda berhasil keluar dari sesi sidang.');
+        }
 }

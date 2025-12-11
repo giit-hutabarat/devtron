@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
 <head>
@@ -15,36 +16,48 @@
         button:hover { background-color: #0056b3; }
         .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; }
         .instansi { color: #666; font-size: 0.8em; margin-top: 15px; }
+        /* ✅ KOREKSI: Tambahkan max-width dan margin */
+    .logo-login { 
+        max-width: 100px; /* Batasi lebar maksimal */
+        height: auto; 
+        margin-bottom: 15px; /* Memberi ruang di bawah logo */
+    }
     </style>
 </head>
 <body>
 
 <div class="login-container">
-    <h2>Akses Sidang (2FA)</h2>
-    <p class="instansi"><?= $nama_instansi ?? 'Instansi Anda' ?></p>
+    <?php if (!empty($logo_instansi)): ?>
+        <img src="<?= esc($logo_instansi) ?>" alt="Logo Instansi" class="logo-login">
+    <?php endif; ?> 
+
+    <!--<h2>Akses Cetak Berkas Sidang</h2>-->
+    <p class="instansi" style="font-size: 1em; color: #333; font-weight: bold;">
+        <?= esc($nama_instansi ?? 'Instansi Anda') ?>
+    </p><br />
 
     <?php if (session()->getFlashdata('error')): ?>
         <div class="alert-error">
-            <?= session()->getFlashdata('error') ?>
-        </div>
-    <?php endif; ?>
+                <?= session()->getFlashdata('error') ?>
+            </div>
+        <?php endif; ?>
 
     <form action="<?= site_url('sidang/verify') ?>" method="post">
         
         <div class="form-group">
             <label for="nip">NIP Pegawai</label>
-            <input type="text" id="nip" name="nip" required placeholder="Masukkan NIP Anda">
+            <input type="text" id="nip" name="nip" required maxlength="18" placeholder="Masukkan NIP Anda">
         </div>
 
         <div class="form-group">
-            <label for="otp_code">Kode OTP 6 Digit</label>
+            <label for="otp_code">OTP 6 Digit</label>
             <input type="text" id="otp_code" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="Kode dari Authenticator">
         </div>
         
-        <button type="submit">Verifikasi & Akses</button>
+        <button type="submit">Akses</button>
     </form>
 
-    <p class="instansi" style="margin-top: 25px;">Pastikan Anda sudah mengkonfigurasi 2FA di aplikasi Authenticator.</p>
+    <p class="instansi" style="margin-top: 25px;">Untuk konfigurasi akses hubungi admin sistem.</p>
 </div>
 
 </body>

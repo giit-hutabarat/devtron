@@ -18,5 +18,10 @@ class Settings{
 		}
 		
 	}
+	// ✅ METHOD GETTER BARU
+    public function get($key)
+    {
+        return $this->info[$key] ?? null;
+    }
 
 }

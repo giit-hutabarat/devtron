@@ -30,6 +30,9 @@ $routes->group('sidang', function($routes) use ($sidangController) {
     // ✅ RUTE API DATA LAMA (Contoh)
     // URL: /sidang/api/data
     $routes->get('api/data', "{$sidangController}::apiData", ['filter' => 'sidang_auth']);
+
+    // ✅ KOREKSI INI: Tambahkan Rute untuk Logout
+    $routes->get('logout', "{$sidangController}::logout"); // Mapped ke method logout()
 });
 
 
