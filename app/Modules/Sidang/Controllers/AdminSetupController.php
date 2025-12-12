@@ -161,7 +161,7 @@ class AdminSetupController extends BaseController
            
             return $this->response->setJSON([
             'status' => 'true',
-            'message' => 'QR Code berhasil dibuat.',
+            'message' => 'QR Code berhasil dibuat.'. $adminUserUpdated['qr_regenerate_count'] . " dari {$MAX_COUNT}x.",
             'data' => [
                 'nip' => $adminUser['nip'],
                 'nama_pegawai' => $adminUser['nama_pegawai'],
