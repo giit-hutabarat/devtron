@@ -129,11 +129,10 @@ class SidangController extends BaseController
 
         try {
             $otp = TOTP::create($secret_key);
-            $indow = 2;
+            $window = 2;
 
             // 3. Verifikasi OTP
-            if ($otp->verify($otp_code, null, $indow)) {
-            
+            if ($otp->verify($otp_code, null, $window)) {
                 session()->set([
                     'isLoggedInSidang' => true, 
                     'sidang_nip' => $adminUser['nip'],
