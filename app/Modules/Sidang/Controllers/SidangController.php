@@ -128,10 +128,11 @@ class SidangController extends BaseController
         $secret_key = $adminUser['sidang_2fa_secret'];
 
         try {
-            $otp = TOTP::create($secret_key); 
+            $otp = TOTP::create($secret_key);
+            $indow = 2;
 
             // 3. Verifikasi OTP
-            if ($otp->verify($otp_code, null, 1)) {
+            if ($otp->verify($otp_code, null, $indow)) {
             
                 session()->set([
                     'isLoggedInSidang' => true, 
@@ -149,7 +150,8 @@ class SidangController extends BaseController
                 return redirect()->to(site_url('sidang/access'))->with('error', 'Kode OTP tidak valid atau sudah kadaluarsa. Coba lagi.');
             }
         } catch (\Throwable $e) {
-             return $this->response->setJSON(['status' => false, 'message' => 'Kesalahan Sistem Verifikasi.']);
+            log_message('critical', 'Verifikasi OTP Gagal: ' . $e->getMessage());
+             return redirect()->to(site_url('sidang/access'))->with('error', 'Terjadi kesalahan saat memverifikasi OTP. Hubungi administrator.');
         }
     }
 
