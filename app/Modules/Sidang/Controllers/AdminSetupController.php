@@ -7,7 +7,6 @@ use App\Modules\Sidang\Models\SidangAdminModel;
 
 // Import library yang dibutuhkan
 use OTPHP\TOTP; 
-// 💥 FIX: Gunakan semua class Builder V6
 use chillerlan\QRCode\QRCode;
 use chillerlan\QRCode\QROptions;
 
@@ -18,7 +17,6 @@ class AdminSetupController extends BaseController
 
     public function __construct()
     {
-        // Inisialisasi Model
         try {
             $this->sidangAdminModel = new SidangAdminModel();
         } catch (\Throwable $e) {
@@ -26,25 +24,21 @@ class AdminSetupController extends BaseController
         }
     }
     
-    // --- 1. Fungsi setupIndex: Dipanggil oleh rute 'setting/otp-sidang' ---
+    // --- 1. Fungsi index: Menampilkan View ---
     public function index()
     {
         if (!$this->sidangAdminModel) {
             return redirect()->back()->with('error', 'Gagal memuat data administrasi. Cek koneksi database.');
         }
 
-        $listAdmins = $this->sidangAdminModel->findAll();
-
         $data = [
             'title' => 'Manajemen Kunci OTP Pegawai Sidang',
-            //'list_admins' => $listAdmins
         ];
         
-        // Panggil view admin/setting_otp
         return view('\App\Modules\Sidang\Views\otp-sidang', $data);
     }
     
-    // --- 2. Fungsi saveNip: Dipanggil oleh rute POST ---
+    // --- 2. Fungsi saveNip: Handle AJAX POST untuk Tambah/Update NIP ---
     public function saveNip()
     {
         $input = $this->request->getPost();
@@ -52,53 +46,46 @@ class AdminSetupController extends BaseController
             'nip' => 'required|min_length[5]',
             'nama_pegawai' => 'required'
         ];
+        
         if (empty($input['id'])) {
             $validationRules['nip'] .= '|is_unique[sidang_admins.nip]';
-            } 
-            else{
-                $validationRules['nip'] .= '|is_unique[sidang_admins.nip,id,' . $input['id'] . ']';
-            }
+        } else {
+            // Update mode: abaikan NIP saat ini
+            $validationRules['nip'] .= '|is_unique[sidang_admins.nip,id,' . $input['id'] . ']';
+        }
 
+        // KOREKSI: Hanya satu blok validasi, dan harus return JSON untuk AJAX
         if (!$this->validate($validationRules)) {
-            return redirect()->back()->withInput()->with('error', $this->validator->listErrors());
-            }
-
-
-            //validasi 
-            if (!$this->validate($validationRules)) {
-                return $this->response->setStatusCode(400)->setJSON([
-                    'status' => 'false',
-                    'message' => 'Validasi Gagal :' . $this->validator->listErrors(),
-                    'errors' => $this->validator->getErrors(),
-
-                ]);
-            }
+            return $this->response->setStatusCode(400)->setJSON([
+                'status' => 'false',
+                'message' => 'Validasi Gagal: ' . $this->validator->listErrors(),
+                'errors' => $this->validator->getErrors(),
+            ]);
+        }
+        
         $data = [
             'nip' => $input['nip'],
             'nama_pegawai' => $input['nama_pegawai'],
-            //'sidang_2fa_secret' => null, 
-            //'is_active' => 0
         ];
 
         try {
             if (!empty($input['id'])) {
-                //update : NIP dan NAMA
                 $this->sidangAdminModel->update($input['id'], $data);
                 $message = 'Data NIP berhasil diupdate.';
             } else {
+                // Insert Baru
                 $data['sidang_2fa_secret'] = null;
                 $data['is_active'] = 0;
                 $this->sidangAdminModel->insert($data);
                 $message = 'Data NIP berhasil ditambahkan. Lakukan "Generate QR Code" untuk mengaktifkan OTP.';
             }
 
-
-                //berhasil simpan
+            // Berhasil simpan: Return JSON dan CSRF Hash baru
             return $this->response->setJSON([
-            'status' => 'true',
-            'message' => $message,
-            'csrf_hash' => csrf_hash(),
-        ]);
+                'status' => 'true',
+                'message' => $message,
+                'csrf_hash' => csrf_hash(), // Wajib kirim hash baru
+            ]);
 
         } catch (\Throwable $e) {
             log_message('error', 'Gagal Menambahkan Pegawai: ' . $e->getMessage());
@@ -107,94 +94,84 @@ class AdminSetupController extends BaseController
                 'message' => 'Gagal menyimpan data: ' . $e->getMessage(),
             ]);
         }
-   }
+    }
     
-    // --- 3. Fungsi generateQr: Dipanggil oleh rute 'setting/otp-sidang/generate/(:num)' ---
+    // --- 3. Fungsi generateQr: Handle AJAX untuk Generate/Tampilkan QR Code ---
     public function generateQr(int $id)
     {
-        // 1. Ambil data user dari database
         $adminUser = $this->sidangAdminModel->find($id);
-
         if (!$adminUser) {
-            return $this->response->setStatusCode(404)->setJSON([
-                'status' => 'false',
-                'message' => 'NIP tidak ditemukan.',
-            ]);
+            return $this->response->setStatusCode(404)->setJSON(['status' => 'false', 'message' => 'NIP tidak ditemukan.']);
         }
         
         $secretKey = $adminUser['sidang_2fa_secret'];
-
         $currentCount = $adminUser['qr_regenerate_count'] ?? 0;
         $MAX_COUNT = 5;
+        $isRegenerate = false; 
 
-        //algoritma cek batas regenerasi QR Code
         try{
-            if ($currentCount >= $MAX_COUNT) {
-            return $this->response->setStatusCode(429)->setJSON([
-                'status' => 'false',
-                'message' => "Batas maksimum regenerasi QR Code ({$MAX_COUNT}) telah tercapai. Silakan hubungi administrator.",
-            ]);
-        }
-        $shouldGenerateNewKey = empty($secretKey) || $adminUser['is_active'] == 0;
-         // generate secret key baru dan update counter
-         if ($shouldGenerateNewKey) {
-            $totp = TOTP::generate();
-            $secretKey = $totp->getSecret();
-        }
-
-        // update status aktivasi dan counter regenerasi
-        $this->sidangAdminModel->update($id, [
-            'sidang_2fa_secret' => $secretKey,
-            'is_active' => 1,
-            'qr_regenerate_count' => $currentCount + 1,
-        ]);
-
-        // Label untuk aplikasi Authenticator
-        $label = $adminUser['nip'] . ' - ' . $adminUser['nama_pegawai'];
-        $issuer = 'TRON Sidang';
-        
-        $totp = TOTP::create($secretKey, 30); 
-        $totp->setIssuer($issuer);
-        $totp->setLabel($label);
+            // 2. Cek Batas Maksimal Regenerasi (5x)
+            if ($currentCount >= $MAX_COUNT && !empty($secretKey)) {
+                return $this->response->setStatusCode(429)->setJSON([
+                    'status' => 'false',
+                    'message' => "Batas maksimal generate QR Code ({$MAX_COUNT}) telah tercapai. Harap hapus NIP dan daftarkan ulang.",
+                ]);
+            }
             
-        $provisioningUri = $totp->getProvisioningUri(); 
-
-            // =========================================================
-            // 💥 BLOCK IMPLEMENTASI CHILLERLAN/PHP-QRCODE
-            // =========================================================
+            // 3. Logika Generate Key Baru: HANYA jika (key kosong) ATAU (status nonaktif)
+            $isGenerateNewKey = empty($secretKey) || $adminUser['is_active'] == 0; 
             
-            // 1. Definisikan Opsi Rendering
+            if ($isGenerateNewKey) {
+                $totp = TOTP::generate();
+                $secretKey = $totp->getSecret(); // Key baru
+                $isRegenerate = true;
+            } 
+
+            // 4. Update DB HANYA jika ada Regenerasi/Setup Awal
+            if ($isGenerateNewKey) {
+                $this->sidangAdminModel->update($id, [
+                    'sidang_2fa_secret' => $secretKey, // Simpan key penuh
+                    'is_active' => 1,
+                    'qr_regenerate_count' => $currentCount + 1, // Tambah hitungan
+                ]);
+            }
+            // Jika HANYA menampilkan ulang, tidak ada update ke DB
+
+            // 5. Setup QR Code (Gunakan $secretKey terbaru/lama)
+            $label = $adminUser['nip'] . ' - ' . $adminUser['nama_pegawai'];
+            $issuer = 'TRON Sidang';
+            $totp = TOTP::create($secretKey, 30); 
+            $totp->setIssuer($issuer);
+            $totp->setLabel($label);
+            $provisioningUri = $totp->getProvisioningUri(); 
+
+            // 6. Render QR Code
             $options = new QROptions([
-                // Pastikan PATH untuk gambar benar-benar kosong, 
-                // agar output langsung berupa string binary PNG.
                 'outputType' => QRCode::OUTPUT_IMAGE_PNG, 
-                'eccLevel'   => QRCode::ECC_H, // ECC_H = High (Tingkat koreksi error tinggi)
-                'scale'      => 5,             // Skala/Ukuran QR Code (5x pixel, menghasilkan ukuran ~250px)
-                'imageBase64' => false,        // Kita akan encode Base64 secara manual
+                'eccLevel'   => QRCode::ECC_H, 
+                'scale'      => 5,             
+                'imageBase64' => false,        
             ]);
-
-            // 2. Render data URI menjadi string PNG biner
             $qrcodeBinary = (new QRCode($options))->render($provisioningUri);
-            
-            // 3. Ubah output PNG mentah menjadi Base64 URI untuk HTML
             $qrCodeImage = 'data:image/png;base64,' . base64_encode($qrcodeBinary);
 
-            $adminUserUpdated = $this->sidangAdminModel->find($id);
-           
+            $adminUserUpdated = $this->sidangAdminModel->find($id); // Ambil data terbaru
+            $message = $isRegenerate ? 
+                       "QR Code berhasil dibuat/diperbarui. Batas saat ini: " . $adminUserUpdated['qr_regenerate_count'] . " dari {$MAX_COUNT}x." :
+                       "QR Code ditampilkan. Kunci tidak diubah.";
+
             return $this->response->setJSON([
-            'status' => 'true',
-            'message' => 'QR Code berhasil dibuat.'. $adminUserUpdated['qr_regenerate_count'] . " dari {$MAX_COUNT}x.",
-            'data' => [
-                'nip' => $adminUser['nip'],
-                'nama_pegawai' => $adminUser['nama_pegawai'],
-                'secretKey' => $secretKey,
-                'qrCodeImage' => $qrCodeImage,
-            ]
-        ]);
-    } catch (\Throwable $e) {
-            // Log Error untuk dibaca di server
+                'status' => 'true',
+                'message' => $message,
+                'data' => [
+                    'nip' => $adminUser['nip'],
+                    'nama_pegawai' => $adminUser['nama_pegawai'],
+                    'secretKey' => $secretKey,
+                    'qrCodeImage' => $qrCodeImage,
+                ]
+            ]);
+        } catch (\Throwable $e) {
             log_message('critical', 'QR GENERATION FAILED: ' . $e->getMessage());
-            
             return $this->response->setStatusCode(500)->setJSON([
                 'status' => 'false',
                 'message' => 'Gagal membuat QR Code. Harap gunakan Kunci Manual. (Error: ' . $e->getMessage() . ')',
