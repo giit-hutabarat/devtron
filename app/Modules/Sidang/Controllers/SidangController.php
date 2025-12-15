@@ -293,9 +293,9 @@ class SidangController extends BaseController
         // 1. Ambil Data Mentah dari Google Sheet
         try {
             // Asumsi: SIDANG HARI INI: Nomor Perkara, Nama Terdakwa, JPU, Tanggal Sidang
-            $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A2:D'); // A2 untuk skip header
+            $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A2:E'); // A2 untuk skip header
             // Asumsi: DATA_MASTER: Nomor Perkara, Biodata Lengkap (Kolom E dst)
-            $masterSheet = $this->fetchSheet('DATA_MASTER!A2:N'); // A2 untuk skip header, N asumsi kolom terakhir biodata
+            $masterSheet = $this->fetchSheet('DATA_MASTER!A2:R'); // A2 untuk skip header, N asumsi kolom terakhir biodata
         } catch (\Throwable $e) {
             // 🛑 PENTING: Gagal koneksi Google Sheet
             log_message('error', 'Gagal Koneksi Google Sheet di Sync: ' . $e->getMessage());
@@ -369,7 +369,8 @@ class SidangController extends BaseController
                     $tglLahir = trim($parts[1] ?? '-');
                 } else {
                     // Jika tidak ada koma, asumsikan itu hanya Tempat Lahir
-                    $tempatLahir = trim($ttlRaw ?? '-');
+                    $tempatLahir = trim($rowM[3] ?? '-');
+                    $tglLahir = trim($rowM[4] ?? '-');
                 }
                 
                 // Asumsi Mapping Kolom DATA_MASTER:
@@ -379,15 +380,15 @@ class SidangController extends BaseController
                     'tgl_lahir'       => $tglLahir,
 
                     // Perbaikan pemecahan TTL
-                    'umur'            => $rowM[12] ?? '-',
-                    'jenis_kelamin'   => $rowM[6] ?? '-',
-                    'kewarganegaraan' => $rowM[7] ?? 'Indonesia',
-                    'alamat'          => $rowM[8] ?? '-',
-                    'agama'           => $rowM[9] ?? '-',
-                    'pekerjaan'       => $rowM[10] ?? '-',
-                    'pendidikan'      => $rowM[11] ?? '-',
-                    'nama_ortu'       => $rowM[12] ?? '-',
-                    'agenda_raw'      => $rowM[13] ?? '-', // Ambil Agenda dari Master jika ada
+                    'umur'            => $rowM[11] ?? '-',
+                    'jenis_kelamin'   => $rowM[12] ?? '-',
+                    'kewarganegaraan' => $rowM[13] ?? 'Indonesia',
+                    'alamat'          => $rowM[14] ?? '-',
+                    'agama'           => $rowM[15] ?? '-',
+                    'pekerjaan'       => $rowM[16] ?? '-',
+                    'pendidikan'      => $rowM[17] ?? '-',
+                    'nama_ortu'       => $rowM[9] ?? '-',
+                    'agenda_raw'      => $rowM[3] ?? '-', // Ambil Agenda dari Master jika ada
                 ];
 
                 // Cek apakah data sudah ada di DB?
