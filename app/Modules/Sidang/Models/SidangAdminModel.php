@@ -9,6 +9,10 @@ class SidangAdminModel extends Model
     // Tabel khusus untuk menyimpan data otentikasi NIP akses Sidang
     protected $table = 'sidang_admins'; 
     protected $primaryKey = 'id';
+    protected $useAutoIncrement = true;
+
+    protected $returnType     = 'array';
+    protected $useSoftDeletes   = false;
     
     // Kolom yang diizinkan untuk diisi
     protected $allowedFields = [
