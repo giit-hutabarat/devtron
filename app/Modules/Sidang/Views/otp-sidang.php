@@ -269,7 +269,7 @@
             this.loading = 'add';
 
             const tokenName = '<?= csrf_token() ?>';
-            const tokenInput = this.$refs.form.$el.querySelector(`input[name="' + tokenName + '"]`);
+            const tokenInput = document.querySelector(`input[name="' + tokenName + '"]`);
             if (!tokenInput) {
                 this.showSnackbar('Error CSRF : Input token tidak ditemukan di DOM.', 'error');
                 this.loading = false;
