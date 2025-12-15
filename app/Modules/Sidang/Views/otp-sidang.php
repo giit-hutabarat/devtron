@@ -267,9 +267,14 @@
         saveNip: async function() {
             if (!this.$refs.form.validate()) return;
             this.loading = 'add';
+            const tokenName = '<?= csrf_token() ?>';
+            const tokenValue = document.querySelector(`input[name="' + $tokenName +"]`).value;
 
             try {
                 const response = await axios.post('<?= base_url('setting/admin-sidang/api/admins/save') ?>', {
+                    [tokenName]: tokenValue,
+
+                     
                     nip: this.nip,
                     nama_pegawai: this.namaPegawai,
                 },{

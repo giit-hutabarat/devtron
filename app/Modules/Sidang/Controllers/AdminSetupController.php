@@ -54,14 +54,25 @@ class AdminSetupController extends BaseController
         ];
         if (empty($input['id'])) {
             $validationRules['nip'] .= '|is_unique[sidang_admins.nip]';
-        } else{
-            $validationRules['nip'] .= '|is_unique[sidang_admins.nip,id,' . $input['id'] . ']';
-        }
+            } 
+            else{
+                $validationRules['nip'] .= '|is_unique[sidang_admins.nip,id,' . $input['id'] . ']';
+            }
 
         if (!$this->validate($validationRules)) {
             return redirect()->back()->withInput()->with('error', $this->validator->listErrors());
-        }
+            }
 
+
+            //validasi 
+            if (!$this->validate($validationRules)) {
+                return $this->response->setStatusCode(400)->setJSON([
+                    'status' => 'false',
+                    'message' => 'Validasi Gagal :' . $this->validator->listErrors(),
+                    'errors' => $this->validator->getErrors(),
+
+                ]);
+            }
         $data = [
             'nip' => $input['nip'],
             'nama_pegawai' => $input['nama_pegawai'],
@@ -80,12 +91,23 @@ class AdminSetupController extends BaseController
                 $this->sidangAdminModel->insert($data);
                 $message = 'Data NIP berhasil ditambahkan. Lakukan "Generate QR Code" untuk mengaktifkan OTP.';
             }
-            return redirect()->back()->with('success', $message);
+
+
+                //berhasil simpan
+            return $this->response->setJSON([
+            'status' => 'true',
+            'message' => $message,
+            'csrf_hash' => csrf_hash(),
+        ]);
+
         } catch (\Throwable $e) {
             log_message('error', 'Gagal Menambahkan Pegawai: ' . $e->getMessage());
-            return redirect()->back()->withInput()->with('error', 'Gagal menyimpan data: ' . $e->getMessage());
+            return $this->response->setStatusCode(500)->setJSON([
+                'status' => 'false',
+                'message' => 'Gagal menyimpan data: ' . $e->getMessage(),
+            ]);
         }
-    }
+   }
     
     // --- 3. Fungsi generateQr: Dipanggil oleh rute 'setting/otp-sidang/generate/(:num)' ---
     public function generateQr(int $id)
