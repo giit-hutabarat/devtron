@@ -9,7 +9,7 @@
             </v-card-title>
             
             <v-card-text class="py-5">
-                <h3 class="text-h6 font-weight-medium mb-4 grey--text text--darken-3">Tambah/Setup NIP Baru</h3>
+                <h3 class="text-h6 font-weight-medium mb-4 grey--text text--darken-3">Tambah / Setup Akses Pegawai</h3>
                 <v-form ref="form" v-model="valid" lazy-validation>
                     <input type="hidden" name="<?= csrf_token() ?>" value="<?= csrf_hash() ?>" />
                     
@@ -42,7 +42,7 @@
                                 @click="saveNip"
                                 class="rounded-pill"
                             >
-                                <v-icon left>mdi-plus</v-icon> Tambah NIP
+                                <v-icon left>mdi-plus</v-icon> Tambah Akses
                             </v-btn>
                         </v-col>
                     </v-row>
