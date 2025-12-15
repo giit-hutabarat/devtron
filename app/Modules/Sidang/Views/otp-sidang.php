@@ -267,26 +267,35 @@
         saveNip: async function() {
             if (!this.$refs.form.validate()) return;
             this.loading = 'add';
+
             const tokenName = '<?= csrf_token() ?>';
-            const tokenValue = document.querySelector(`input[name="' + $tokenName +"]`).value;
+            const tokenInput = $this.$refs.form.$el.querySelector(`input[name="' + tokenName + '"]`);
+
+            if (!tokenInput) {
+                this.showSnackbar('Error CSRF : Input token tidak ditemukan di DOM.', 'error');
+                this.loading = false;
+                return;
+            }
+
+            const tokenValue = tokenInput.value;
 
             try {
                 const response = await axios.post('<?= base_url('setting/admin-sidang/api/admins/save') ?>', {
                     [tokenName]: tokenValue,
 
-                     
+                     // Data Form
                     nip: this.nip,
                     nama_pegawai: this.namaPegawai,
-                },{
-                    headers: {
-                        'content-type': 'application/json'
-                    }
                 });
                 
                 if (response.data.status === false) {
                      this.showSnackbar(response.data.message, 'error');
                 } else {
                      this.showSnackbar(response.data.message, 'success');
+
+                     // Reset Form
+                     tokenInput.value = response.data.csrf_hash;
+                     
                      this.nip = '';
                      this.namaPegawai = '';
                      this.$refs.form.resetValidation();
