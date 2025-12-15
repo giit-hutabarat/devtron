@@ -164,7 +164,13 @@ class SidangController extends BaseController
         if (!session()->get('isLoggedInSidang')) {
              return redirect()->to(site_url('sidang/access'));
         }
-        
+        $nipUser = session()->get('sidang_nip');
+        $namaPegawai = '-';
+        // Ambil nama pegawai dari sidang_admins
+        $adminUser = $this->sidangAdminModel->where('nip', $nipUser)->first();
+        if ($adminUser) {
+            $namaPegawai = $adminUser['nama_pegawai'] ?? '-';
+        }
         // 🛑 KOREKSI 2: Logic pengambilan Settings yang Aman di index()
         $settingsData = [
             'nama_aplikasi' => 'APP SIDANG',
@@ -173,6 +179,7 @@ class SidangController extends BaseController
             'alamat'        => '-',
             'nip _user'      => session()->get('sidang_nip'),
         ];
+        
 
         if ($this->setting !== null) {
              try {
@@ -222,7 +229,10 @@ class SidangController extends BaseController
 
             'opt_tanggal'   => $listTanggal, 
             'all_data'      => $cleanedData, 
-            'nip_user'      => session()->get('sidang_nip'),
+
+
+            'nip_user'      => $nipUser,
+            'nama_pegawai'  => $namaPegawai,
             'selected_date' => null 
         ];
 
