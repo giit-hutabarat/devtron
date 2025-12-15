@@ -552,4 +552,12 @@ class SidangController extends BaseController
             // Redirect user kembali ke halaman login 2FA
             return redirect()->to(site_url('sidang/access'))->with('success', 'Anda berhasil keluar dari sesi sidang.');
         }
+    // HELPER BARU: Update cache tanggal unik di index()
+    private function updateTanggalSidangDropdown()
+    {
+        // Fungsi ini dipanggil setelah sync. 
+        // Saat ini, kita biarkan kosong karena index() mengambil data langsung dari DB.
+        // Jika di masa depan Anda ingin membuat caching, logic-nya ada di sini.
+        return true;
+    }
 }
