@@ -264,14 +264,21 @@
         },
 
         // Save NIP (Add New Admin)
+        // --- Di window.methodsVue::saveNip (GANTI TOTAL) ---
         saveNip: async function() {
             if (!this.$refs.form.validate()) return;
             this.loading = 'add';
 
+            // 💥 KOREKSI UTAMA: Gunakan String Concatenation untuk Selector
             const tokenName = '<?= csrf_token() ?>';
-            const tokenInput = document.querySelector(`input[name="' + tokenName + '"]`);
+            
+            // Mencari input token secara spesifik di dalam komponen form
+            // Gunakan selector standar di DOM
+            const tokenInput = document.querySelector('input[name="' + tokenName + '"]');
+
             if (!tokenInput) {
-                this.showSnackbar('Error CSRF : Input token tidak ditemukan di DOM.', 'error');
+                // Notif ini yang muncul di screenshot Anda
+                this.showSnackbar('Error CSRF: Input token tidak ditemukan di DOM.', 'error');
                 this.loading = false;
                 return;
             }
@@ -280,7 +287,7 @@
 
             try {
                 const response = await axios.post('<?= base_url('setting/admin-sidang/api/admins/save') ?>', {
-                    [tokenName]: tokenValue,
+                    [tokenName]: tokenValue, // Kirim token CSRF
 
                      // Data Form
                     nip: this.nip,
@@ -292,8 +299,8 @@
                 } else {
                      this.showSnackbar(response.data.message, 'success');
 
-                     // Reset Form
-                     tokenInput.value = response.data.csrf_hash;
+                     // Reset Form dan CSRF Hash Baru
+                     tokenInput.value = response.data.csrf_hash; // Update token hash baru
                      
                      this.nip = '';
                      this.namaPegawai = '';
@@ -302,13 +309,16 @@
                      this.loadAdmins(); // Refresh data
                 }
             } catch (error) {
-                this.showSnackbar('Gagal menyimpan data NIP. Cek koneksi server/database.', 'error');
+                let msg = 'Gagal menyimpan data NIP. ';
+                if (error.response && error.response.data && error.response.data.message) { 
+                    msg += error.response.data.message;
+                }
+                this.showSnackbar(msg, 'error');
                 console.error("Error saving NIP:", error);
             } finally {
                 this.loading = false;
             }
         },
-
         // Show QR Code (Redirect)
         showQrCode: async function(item) {
             this.loading = item.id; 
