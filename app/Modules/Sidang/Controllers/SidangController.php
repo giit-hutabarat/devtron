@@ -355,12 +355,31 @@ class SidangController extends BaseController
                 // Cari Biodata di Master
                 $rowM = $masterMap[$noPerkara] ?? [];
 
+                // 💥 KOREKSI PEMECANGAN DATA GABUNGAN
+                // ASUMSI: Data gabungan "Tempat, Tanggal Lahir" ada di Index 3 ($rowM[3])
+                
+                $ttlRaw = $rowM[3] ?? null;
+                $tempatLahir = '-';
+                $tglLahir = '-';
+                
+                // Logic pemecah: Cari koma pertama (,)
+                if ($ttlRaw && strpos($ttlRaw, ',') !== false) {
+                    $parts = explode(',', $ttlRaw, 2); // Pecah maksimal 2 bagian
+                    $tempatLahir = trim($parts[0]);
+                    $tglLahir = trim($parts[1] ?? '-');
+                } else {
+                    // Jika tidak ada koma, asumsikan itu hanya Tempat Lahir
+                    $tempatLahir = trim($ttlRaw ?? '-');
+                }
+                
                 // Asumsi Mapping Kolom DATA_MASTER:
                 // [0] No Perkara, [1] NAMA Terdakwa, [2] Alamat, [3] Tempat Lahir, [4] Tgl Lahir, [5] Umur, [6] JK, [7] Kewarganegaraan, [8] Alamat, [9] Agama, [10] Pekerjaan, [11] Pendidikan, [12] Nama Ortu, [13] Agenda Raw
                 $dataFull = [
-                    'tempat_lahir'    => $rowM[3] ?? '-',
-                    'tgl_lahir'       => $rowM[4] ?? '-',
-                    'umur'            => $rowM[5] ?? '-',
+                    'tempat_lahir'    => $tempatLahir,
+                    'tgl_lahir'       => $tglLahir,
+
+                    // Perbaikan pemecahan TTL
+                    'umur'            => $rowM[12] ?? '-',
                     'jenis_kelamin'   => $rowM[6] ?? '-',
                     'kewarganegaraan' => $rowM[7] ?? 'Indonesia',
                     'alamat'          => $rowM[8] ?? '-',
