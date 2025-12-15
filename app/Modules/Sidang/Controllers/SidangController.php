@@ -283,17 +283,23 @@ class SidangController extends BaseController
         return $this->response->setJSON(['status' => 200, 'total' => count($cleanedData), 'data' => $cleanedData]);
     }
 
+
     /**
      * FITUR SINKRONISASI (SYNC) - MEMERLUKAN FILTER 'sidang_auth'
+     * 💥 LOGIC DIUBAH: Mengambil data dari SIDANG HARI INI dan DATA_MASTER Google Sheets
      */
     public function sync()
     {
         // 1. Ambil Data Mentah dari Google Sheet
         try {
-            $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A1:G100');
-            $masterSheet = $this->fetchSheet('DATA_MASTER!A1:G100');
+            // Asumsi: SIDANG HARI INI: Nomor Perkara, Nama Terdakwa, JPU, Tanggal Sidang
+            $sidangSheet = $this->fetchSheet('SIDANG HARI INI!A2:D'); // A2 untuk skip header
+            // Asumsi: DATA_MASTER: Nomor Perkara, Biodata Lengkap (Kolom E dst)
+            $masterSheet = $this->fetchSheet('DATA_MASTER!A2:N'); // A2 untuk skip header, N asumsi kolom terakhir biodata
         } catch (\Throwable $e) {
-            return redirect()->to('sidang')->with('error', "Gagal koneksi ke server, Hubungi administrator. Pesan: " . $e->getMessage());
+            // 🛑 PENTING: Gagal koneksi Google Sheet
+            log_message('error', 'Gagal Koneksi Google Sheet di Sync: ' . $e->getMessage());
+            return redirect()->to('sidang')->with('error', "Gagal koneksi ke Google Sheet. Hubungi administrator. Pesan: " . $e->getMessage());
         }
 
         // 2. Buat Kamus Data Master (Kunci: Nomor Perkara / Index 0)
@@ -301,27 +307,56 @@ class SidangController extends BaseController
         if (!empty($masterSheet)) {
             foreach ($masterSheet as $mRow) {
                 $key = isset($mRow[0]) ? trim($mRow[0]) : '';
-                if ($key) $masterMap[$key] = $mRow;
+                // Pastikan key tidak kosong dan tidak berisi header/sampah
+                if ($key && stripos($key, 'nomor') === false) { 
+                    $masterMap[$key] = $mRow;
+                }
             }
         }
 
         $countInsert = 0;
         $countUpdate = 0;
+        $countSkip = 0;
 
         // 3. Proses Simpan ke Database
         if (!empty($sidangSheet)) {
             foreach ($sidangSheet as $rowS) {
+                // Asumsi mapping kolom dari SIDANG HARI INI:
+                // [0] Nomor Perkara, [1] Nama Terdakwa, [2] JPU, [3] Tanggal Sidang (Format YYYY-MM-DD atau DD/MM/YYYY)
+
                 // Bersihkan data
                 $noPerkara = isset($rowS[0]) ? trim(preg_replace('/\s+/', ' ', $rowS[0])) : '';
                 $nama      = isset($rowS[1]) ? trim(preg_replace('/\s+/', ' ', $rowS[1])) : '';
+                $jpu       = isset($rowS[2]) ? trim($rowS[2]) : '-';
+                $tglSidangRaw = isset($rowS[3]) ? trim($rowS[3]) : '';
                 
                 // Filter Ghost Rows (Data Kosong/Sampah)
-                if ($noPerkara == '' || strlen($noPerkara) < 5 || stripos($noPerkara, 'Nomor') !== false) continue;
-
+                if ($noPerkara == '' || strlen($noPerkara) < 5 || stripos($noPerkara, 'Nomor') !== false) {
+                    $countSkip++;
+                    continue;
+                }
+                
+                // Konversi Tanggal Sidang (Asumsi format YYYY-MM-DD atau D/M/YYYY)
+                $tglSidang = date('Y-m-d'); 
+                if (!empty($tglSidangRaw)) {
+                    // Coba parsing YYYY-MM-DD
+                    if (\DateTime::createFromFormat('Y-m-d', $tglSidangRaw) !== false) {
+                        $tglSidang = $tglSidangRaw;
+                    } 
+                    // Coba parsing DD/MM/YYYY atau M/D/YYYY (format spreadsheet)
+                    else {
+                        $timestamp = strtotime($tglSidangRaw);
+                        if ($timestamp !== false) {
+                            $tglSidang = date('Y-m-d', $timestamp);
+                        }
+                    }
+                }
+                
                 // Cari Biodata di Master
                 $rowM = $masterMap[$noPerkara] ?? [];
 
-                // Gabungkan Biodata ke dalam JSON
+                // Asumsi Mapping Kolom DATA_MASTER:
+                // [0] No Perkara, [1] NAMA Terdakwa, [2] Alamat, [3] Tempat Lahir, [4] Tgl Lahir, [5] Umur, [6] JK, [7] Kewarganegaraan, [8] Alamat, [9] Agama, [10] Pekerjaan, [11] Pendidikan, [12] Nama Ortu, [13] Agenda Raw
                 $dataFull = [
                     'tempat_lahir'    => $rowM[3] ?? '-',
                     'tgl_lahir'       => $rowM[4] ?? '-',
@@ -333,12 +368,8 @@ class SidangController extends BaseController
                     'pekerjaan'       => $rowM[10] ?? '-',
                     'pendidikan'      => $rowM[11] ?? '-',
                     'nama_ortu'       => $rowM[12] ?? '-',
-                    'agenda_raw'      => $rowS[3] ?? '-', // Simpan agenda asli
-                    'hari_raw'        => $rowS[6] ?? '-', // Simpan hari asli
+                    'agenda_raw'      => $rowM[13] ?? '-', // Ambil Agenda dari Master jika ada
                 ];
-
-                // Tanggal Sidang (Asumsi format string di sheet konsisten)
-                $tglSidang = $rowS[6] ?? date('Y-m-d'); 
 
                 // Cek apakah data sudah ada di DB?
                 $existing = $this->sidangModel->where('nomor_perkara', $noPerkara)->first();
@@ -346,8 +377,8 @@ class SidangController extends BaseController
                 $saveData = [
                     'tanggal_sidang' => $tglSidang, 
                     'nomor_perkara'  => $noPerkara,
-                    'nama_terdakwa'  => $nama,
-                    'jpu'            => $rowS[4] ?? '-',
+                    'nama_terdakwa'  => $nama, // Ambil nama dari sheet sidang hari ini (lebih update)
+                    'jpu'            => $jpu,
                     'data_full'      => json_encode($dataFull), // Simpan biodata sbg JSON
                 ];
 
@@ -361,9 +392,11 @@ class SidangController extends BaseController
             }
         }
 
-        return redirect()->to('sidang')->with('success', "Sinkronisasi Selesai! Data Baru: $countInsert, Update: $countUpdate");
-    }
+        // 4. Kumpulkan kembali semua tanggal unik dari database untuk update dropdown
+        $this->updateTanggalSidangDropdown();
 
+        return redirect()->to('sidang')->with('success', "Sinkronisasi Selesai! Data Baru: $countInsert, Update: $countUpdate, Skip: $countSkip");
+    }
     /**
      * FITUR PROSES CETAK - MEMERLUKAN FILTER 'sidang_auth'
      */
