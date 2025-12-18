@@ -363,6 +363,135 @@ $path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); //
 .select2-container, .form-select-dropdown, .dataTables_wrapper select {
     z-index: 10000 !important;
 }
+
+
+/* Backdrop dengan efek Blur */
+    .modal-backdrop.show {
+        backdrop-filter: blur(5px);
+        opacity: 0.8;
+    }
+    
+    /* Container Modal */
+    .modal-modern .modal-content {
+        background: linear-gradient(145deg, #1e1e1e 0%, #252525 100%); /* Gradasi halus */
+        border: 1px solid #444;
+        box-shadow: 0 20px 50px rgba(0,0,0,0.7); /* Shadow tebal biar melayang */
+        border-radius: 16px;
+        overflow: hidden;
+    }
+    
+    /* Header Gradient Biru-Ungu Modern */
+    .modal-modern .modal-header {
+        background: linear-gradient(135deg, #0D47A1 0%, #1976D2 100%);
+        color: white;
+        border-bottom: 1px solid rgba(255,255,255,0.05);
+        padding: 20px 25px;
+    }
+    .modal-modern .modal-title {
+        font-family: 'Inter', sans-serif;
+        font-weight: 700;
+        font-size: 1.1rem;
+        letter-spacing: 0.5px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    /* Section Label */
+    .modal-section-label {
+        color: #64B5F6; /* Biru muda neon */
+        font-size: 0.75rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 1.5px;
+        margin-top: 10px;
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .modal-section-label::after {
+        content: '';
+        flex: 1;
+        height: 1px;
+        background: linear-gradient(90deg, #444 0%, transparent 100%);
+    }
+
+    /* Input Fields Modern */
+    .form-label-modern {
+        font-size: 0.8rem;
+        color: #aaa;
+        margin-bottom: 6px;
+        font-weight: 500;
+    }
+    .input-group-text-modern {
+        background-color: #2b2b2b;
+        border: 1px solid #444;
+        border-right: none;
+        color: #888;
+        padding-left: 15px;
+        padding-right: 15px;
+    }
+    .form-control-modern {
+        background-color: #2b2b2b;
+        border: 1px solid #444;
+        color: #fff;
+        font-size: 0.95rem;
+        padding: 10px 15px;
+        transition: all 0.2s;
+    }
+    .form-control-modern:focus {
+        background-color: #333;
+        border-color: #448AFF; /* Fokus Biru */
+        box-shadow: 0 0 0 4px rgba(68, 138, 255, 0.15); /* Glow effect */
+        color: white;
+    }
+    .form-control-modern::placeholder { color: #555; font-size: 0.9rem; }
+
+    /* Info Box Alert */
+    .info-box-modern {
+        background: rgba(33, 150, 243, 0.08); /* Biru Transparan */
+        border: 1px dashed rgba(33, 150, 243, 0.3);
+        border-radius: 8px;
+        padding: 12px 15px;
+        font-size: 0.8rem;
+        color: #90CAF9;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 12px;
+        align-items: start;
+        line-height: 1.4;
+    }
+
+    /* Footer & Buttons */
+    .modal-modern .modal-footer {
+        background-color: #1a1a1a;
+        border-top: 1px solid #333;
+        padding: 15px 25px;
+    }
+    .btn-action-modern {
+        background: linear-gradient(135deg, #2962FF 0%, #1565C0 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 10px 25px;
+        border-radius: 8px;
+        box-shadow: 0 4px 15px rgba(21, 101, 192, 0.4);
+        transition: transform 0.2s;
+    }
+    .btn-action-modern:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 6px 20px rgba(21, 101, 192, 0.6);
+        color: white;
+    }
+    .btn-cancel-modern {
+        color: #ccc;
+        font-size: 0.9rem;
+        font-weight: 500;
+        padding: 10px 20px;
+    }
+    .btn-cancel-modern:hover { color: #fff; }
+
     </style>
 </head>
 <body>
@@ -485,56 +614,89 @@ $path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); //
                 </form>
         </div>
     </div>
-<div class="modal fade" id="modalConfigCetak" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal fade modal-modern" id="modalConfigCetak" tabindex="-1" data-bs-backdrop="static">
     <div class="modal-dialog modal-dialog-centered">
-        <div class="modal-content" style="background-color: #2D2D2D; color: #fff; border: 1px solid #444;">
-            <div class="modal-header" style="border-bottom: 1px solid #444;">
-                <h5 class="modal-title"><i class="fa-solid fa-gear me-2 text-warning"></i>Konfigurasi Data Cetak</h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+        <div class="modal-content">
+            
+            <div class="modal-header">
+                <h5 class="modal-title">
+                    <i class="fa-solid fa-sliders me-2"></i> Konfigurasi Cetak
+                </h5>
+                <button type="button" class="btn-close btn-close-white opacity-50" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
-            <div class="modal-body">
-                <p class="small text-muted mb-3">Data ini akan tersimpan otomatis di browser (LocalStorage) agar tidak perlu input ulang.</p>
+            
+            <div class="modal-body p-4">
                 
-                <h6 class="text-primary border-bottom border-secondary pb-1 mb-2">1. Info Surat</h6>
-                <div class="row g-2 mb-3">
-                    <div class="col-md-6">
-                        <label class="form-label text-warning" style="font-size:0.8rem;">Nama Instansi (Kop)</label>
-                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
+                <div class="modal-section-label">
+                    <i class="fa-solid fa-building-flag"></i> 1. Kop & Lokasi
+                </div>
+                
+                <div class="row g-3 mb-4">
+                    <div class="col-md-7">
+                        <label class="form-label-modern">Nama Instansi</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-landmark"></i></span>
+                            <input type="text" class="form-control form-control-modern" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
+                        </div>
                     </div>
-                    <div class="col-md-6">
-                        <label class="form-label text-warning" style="font-size:0.8rem;">Kota (Tempat TTD)</label>
-                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgKota" placeholder="Contoh: Boyolali">
+                    <div class="col-md-5">
+                        <label class="form-label-modern">Kota (Tempat TTD)</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-map-location-dot"></i></span>
+                            <input type="text" class="form-control form-control-modern" id="cfgKota" placeholder="Contoh: Boyolali">
+                        </div>
                     </div>
                 </div>
 
-                <h6 class="text-success border-bottom border-secondary pb-1 mb-2">2. Pejabat Penandatangan</h6>
-                <div class="alert alert-dark border-secondary p-2 mb-2" style="font-size: 0.75rem;">
-                    <i class="fa-solid fa-circle-info me-1"></i> Jika dikosongkan, sistem akan menggunakan data JPU dari database & NIP Login Anda.
-                </div>
-                
-                <div class="mb-2">
-                    <label class="form-label" style="font-size:0.8rem;">Jabatan (Struktural)</label>
-                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgJabatan" placeholder="Contoh: KEPALA SEKSI TINDAK PIDANA UMUM">
+                <div class="modal-section-label">
+                    <i class="fa-solid fa-signature"></i> 2. Penandatangan
                 </div>
 
-                <div class="row g-2">
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size:0.8rem;">Nama Lengkap Pejabat</label>
-                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgNamaPejabat" placeholder="Nama Penandatangan...">
-                    </div>
-                    <div class="col-md-6">
-                        <label class="form-label" style="font-size:0.8rem;">NIP / NRP</label>
-                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgNipPejabat" placeholder="NIP Penandatangan...">
+                <div class="info-box-modern">
+                    <i class="fa-solid fa-circle-info mt-1"></i>
+                    <div>
+                        <strong>Opsional:</strong> Jika bagian ini dikosongkan, sistem otomatis menggunakan data Jaksa (JPU) dari database & NIP Anda saat ini.
                     </div>
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label-modern">Jabatan Struktural</label>
+                    <div class="input-group">
+                        <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-briefcase"></i></span>
+                        <input type="text" class="form-control form-control-modern" id="cfgJabatan" placeholder="Contoh: KEPALA SEKSI TINDAK PIDANA UMUM">
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-7">
+                        <label class="form-label-modern">Nama Lengkap Pejabat</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-user-tie"></i></span>
+                            <input type="text" class="form-control form-control-modern" id="cfgNamaPejabat" placeholder="Nama lengkap...">
+                        </div>
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label-modern">NIP / NRP</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-id-card"></i></span>
+                            <input type="text" class="form-control form-control-modern" id="cfgNipPejabat" placeholder="199...">
+                        </div>
+                    </div>
+                </div>
+
             </div>
-            <div class="modal-footer" style="border-top: 1px solid #444;">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
-                <button type="button" class="btn btn-primary" id="btnFinalCetak">
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-cancel-modern" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-action-modern" id="btnFinalCetak">
                     <i class="fa-solid fa-print me-2"></i> LANJUTKAN CETAK
                 </button>
             </div>
+
         </div>
+    </div>
+</div>                
+    
     </div>
 </div>
     <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
@@ -728,7 +890,6 @@ $(document).ready(function() {
 
     // Tabel checklist berubah -> Cek tombol
     $('#tableSidang tbody').on('change', '.row-checkbox', updateBtnState);
-    $('#checkAll').on('click', function() { /* ... logic check all ... */ updateBtnState(); });
 
     // Check All
     $('#checkAll').on('click', function() {
@@ -748,8 +909,12 @@ $(document).ready(function() {
 
     // 2. INTERCEPT SUBMIT FORM (Untuk Validasi & Tampil Modal)
     $('#formCetak').on('submit', function(e){
+      
+        if ($('#inputModeCetak').val() === 'full_p38') {
+            return true; 
+        }
+
         e.preventDefault();
-        if ($('#inputModeCetak').val() === 'full_p38') return true; 
 
         var mode = $('#inputModeCetak').val();
         var countChecked = table.rows().nodes().to$().find('.row-checkbox:checked').length;
@@ -767,13 +932,8 @@ $(document).ready(function() {
                 return false; 
             }
         }
-
         // Simpan Form ke variabel global
         formToSubmit = this;
-
-// 🔥 KOREKSI UTAMA DISINI: 
-        // Panggil .show() pada variabel global 'myAppModal' yg sudah dibuat di atas.
-        // JANGAN buat 'new bootstrap.Modal' lagi disini!
         myAppModal.show();
         });
 
@@ -801,6 +961,7 @@ $(document).ready(function() {
             $('<input>').attr({type: 'hidden', name: item.name, value: item.val, class: 'extra-data'}).appendTo(formToSubmit);
         });
 
+        $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();
         // C. Handle Data Checklist (Pilih Data)
         // Ambil ID dari checklist walaupun di pagination berbeda
         var selectedValues = [];
@@ -809,31 +970,36 @@ $(document).ready(function() {
                 selectedValues.push($(this).val());
             });
         }
-        // 🔥 PERBAIKAN DISINI: CUMA HAPUS INPUT HIDDEN, JANGAN HAPUS CHECKBOX!
-        // Kode Lama: $('input[name="pilih_data[]"]').remove();  <-- INI SALAH (Checkbox ikut kehapus)
-        // Kode Baru:
-        $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();// Hapus input lama
         if (selectedValues.length > 0) {
             selectedValues.forEach(function(val) {
                 $(formToSubmit).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
             });
         }
-
+        // 🔥 FIX ERROR FOCUS DISINI:
+        // Lepaskan fokus dari tombol ini sebelum modal ditutup
+        $(this).blur();
         myAppModal.hide();
-                // Kosongkan form modal agar bersih saat dibuka lagi
+        
+        // Kosongkan form modal agar bersih saat dibuka lagi
         $('#cfgInstansi').val('');
         $('#cfgKota').val('');
         $('#cfgJabatan').val('');
         $('#cfgNamaPejabat').val('');
         $('#cfgNipPejabat').val('');
-        setTimeout(() => {
-            formToSubmit.submit();
-        }, 300);
         
+        setTimeout(() => {
+            
+            if(table) {
+                table.rows().nodes().to$().find('.row-checkbox').prop('checked', false);
+            }
+            $('#checkAll').prop('checked', false);
+            updateBtnState();
 
+            // Submit form
+            formToSubmit.submit();
+
+        }, 300);
     });
-    
-    updateBtnState();
 });
     </script>
 </body>
