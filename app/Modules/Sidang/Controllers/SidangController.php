@@ -431,7 +431,19 @@ class SidangController extends BaseController
         $mode = $this->request->getPost('mode_cetak');
         $tanggalTerpilih = $this->request->getPost('tanggal_terpilih');
 
-        // 2. Setup Folder Backup
+        // 2. AMBIL DATA KONFIGURASI DARI MODAL (View)
+        $customInstansi = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
+        $customKota     = $this->request->getPost('custom_kota') ?: 'Indonesia';
+        $ttdJabatan     = $this->request->getPost('ttd_jabatan'); 
+        $ttdNama        = $this->request->getPost('ttd_nama');
+        $ttdNip         = $this->request->getPost('ttd_nip');
+
+        // Validasi Tanggal (Wajib ada untuk semua mode)
+        if (empty($tanggalTerpilih)) {
+            return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
+        }
+
+        // 3. Setup Folder Backup
         $hariIni = date('Y-m-d');
         $pathArsip = WRITEPATH . 'arsip_sidang';
         $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
@@ -442,18 +454,34 @@ class SidangController extends BaseController
         $generatedFiles = [];
         $targetData = [];
 
-        // 3. Ambil Data Target dari Database
-        if ($mode == 'full_p38') {
-            // Mode Tombol Hijau: Ambil semua data tanggal tsb
-            $dbFormatDate = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih)->format('Y-m-d');
+        // Konversi tanggal UI (d-m-Y) ke DB (Y-m-d)
+        $dbFormatDate = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih)->format('Y-m-d');
+
+        // ==========================================================
+        // 🔥 LOGIC BARU: CONTROLLER IS THE BOSS
+        // ==========================================================
+
+        // Cek apakah P-38 dipilih?
+        $isP38 = (is_array($docTypes) && in_array('p38', $docTypes));
+        
+        // Jika tombol Hijau (full_p38) ATAU Checkbox P-38 dicentang
+        if ($mode == 'full_p38' || $isP38) {
+
+            // PAKSA AMBIL SEMUA DATA (Abaikan checklist manual)
             $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
-            $docTypes = ['p38']; 
+            
+            // Jika masuk lewat tombol hijau, pastikan doctypes di-set minimal p38
+            if ($mode == 'full_p38') {
+                $docTypes = ['p38']; 
+            }
+            
         } else {
-            // Mode Tombol Kuning: Ambil sesuai checklist
-            if(empty($selectedNoPerkara)) return redirect()->back()->with('error', 'Pilih data dulu!');
+            // Mode Normal (Hanya P-37 atau lainnya) -> WAJIB CHECKLIST
+            if(empty($selectedNoPerkara)) return redirect()->back()->with('error', 'Pilih minimal satu data Terdakwa!');
             if(empty($docTypes)) return redirect()->back()->with('error', 'Pilih jenis dokumen!');
             
             $targetData = $this->sidangModel->whereIn('nomor_perkara', $selectedNoPerkara)->findAll();
+
         }
 
         if (empty($targetData)) {
@@ -465,38 +493,72 @@ class SidangController extends BaseController
             // Decode JSON biodata
             $details = json_decode($row['data_full'], true);
 
-            $dataRow = [
-                'nomor_perkara'   => $row['nomor_perkara'],
-                'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']), 
-                'jpu'             => $row['jpu'],
-                'hari_sidang'     => $row['tanggal_sidang'], 
-                'agenda'          => $details['agenda_raw'] ?? '-',
-                'tanggal_surat'   => date('d F Y'), 
+            // LOGIKA PENENTUAN PEJABAT TTD (Fitur Modal Tadi)
+            // 1. Jika User input di Modal -> Pakai input Modal
+            // 2. Jika Kosong -> Pakai Default (JPU perkara tersebut)
+            $finalTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
+            $finalTtdNip  = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
+            $finalTtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM'; // Default jabatan
 
-                // Data Biodata
+            // FORMAT TANGGAL
+            // JSON: "tanggal_sidang": "2025-12-18" -> Jadi: "Kamis, 18 Desember 2025"
+            $hariSidangIndo = $this->formatTanggalIndo($row['tanggal_sidang']);
+            
+            // Tanggal Surat (Hari Ini)
+            $tglSuratIndo = $this->formatTglSaja(date('Y-m-d'));
+
+            $dataRow = [
+
+                // DATA INSTANSI & KOP (Dari Modal)
+                'nama_instansi'   => strtoupper($customInstansi),
+
+                // --- 2. DATA UTAMA (Dari Tabel DB Langsung) ---
+                'nomor_perkara'   => $row['nomor_perkara'],
+                'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
+                'jpu'             => $row['jpu'], // JPU Asli (untuk bagian "Menghadap Kepada")
+                'hari_sidang'     => $hariSidangIndo, // Hasil convert helper
+
+                // --- 3. DETAIL BIODATA (Dari JSON data_full) ---
+                // Menggunakan null coalescing (??) agar tidak error jika data kosong
                 'tempat_lahir'    => $details['tempat_lahir'] ?? '-',
                 'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
                 'umur'            => $details['umur'] ?? '-',
                 'jenis_kelamin'   => $details['jenis_kelamin'] ?? '-',
-                'kewarganegaraan' => $details['kewarganegaraan'] ?? '-',
+                'kewarganegaraan' => $details['kewarganegaraan'] ?? 'Indonesia',
                 'alamat'          => $details['alamat'] ?? '-',
                 'agama'           => $details['agama'] ?? '-',
                 'pekerjaan'       => $details['pekerjaan'] ?? '-',
                 'pendidikan'      => $details['pendidikan'] ?? '-',
                 'nama_ortu'       => $details['nama_ortu'] ?? '-',
-                'nip_jpu'         => session()->get('sidang_nip') ?? '...................',
+                                
+                // --- 4. AGENDA ---
+                // Di template tertulis: "perkara tindak Pidana ${agenda}"
+                // JSON punya 'agenda_raw' ("Tuntutan") dan 'jenis_perkara' ("Lain-Lain")
+                // Pilih salah satu yang cocok untuk template.
+                'jenis_perkara'   => $details['jenis_perkara'] ?? 'Pidana Umum', // Default jika kosong
+                'agenda'          => $details['agenda_raw'] ?? '-',
+
+                // --- 5. TANDA TANGAN (Footer) ---
+                // PENTING: Template harus diubah variabelnya agar fitur Ganti Pejabat jalan
+                'kota_surat'      => $customKota,
+                'tanggal_surat'   => $tglSuratIndo, // Isinya cuma tanggal: "18 Desember 2025"
+
+                'ttd_nama'        => $finalTtdNama,     // Variabel baru untuk TTD
+                'ttd_nip'         => $finalTtdNip,      // Variabel baru untuk NIP TTD
+                'ttd_jabatan'     => $finalTtdJabatan,  // Variabel baru untuk Jabatan
+
+                // Backup jika template belum diubah (masih pakai ${nip_jpu})
+                'nip_jpu'         => $finalTtdNip,
             ];
 
             // Bersihkan nama file
             $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $row['nama_terdakwa']);
             $cleanName = substr($cleanName, 0, 50);
 
-            // Generate P-37
-            if (in_array('p37', $docTypes)) {
+            if (is_array($docTypes) && in_array('p37', $docTypes)) {
                 $this->generateDoc('template_p37.docx', $dataRow, "P37_{$cleanName}.docx", $folderBackup, $generatedFiles);
             }
-            // Generate P-38
-            if (in_array('p38', $docTypes)) {
+            if (is_array($docTypes) && in_array('p38', $docTypes)) {
                 $this->generateDoc('template_p38.docx', $dataRow, "P38_{$cleanName}.docx", $folderBackup, $generatedFiles);
             }
         }
@@ -520,11 +582,7 @@ class SidangController extends BaseController
                 $zip->close();
             }
             
-            if (file_exists($zipName)) {
-                return $this->response->download($zipName, null);
-            } else {
-                return redirect()->back()->with('error', 'Gagal membuat file ZIP.');
-            }
+            return $this->response->download($zipName, null);
         }
     }
 
@@ -556,6 +614,45 @@ class SidangController extends BaseController
             // Redirect user kembali ke halaman login 2FA
             return redirect()->to(site_url('sidang/access'))->with('success', 'Anda berhasil keluar dari sesi sidang.');
         }
+
+
+        // helper format tanggal dan hari di indonesia 
+        
+    // HELPER: Format Tanggal Indonesia (Hari, d F Y)
+    private function formatTanggalIndo($tanggal)
+    {
+        if (empty($tanggal) || $tanggal == '0000-00-00') return '-';
+        
+        $hari = [
+            'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
+            'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+        ];
+        $bulan = [
+            1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+
+        $timestamp = strtotime($tanggal);
+        $namaHari = $hari[date('l', $timestamp)];
+        $tgl = date('d', $timestamp);
+        $bln = $bulan[(int)date('m', $timestamp)];
+        $thn = date('Y', $timestamp);
+
+        return "$namaHari, $tgl $bln $thn";
+    }
+
+    // HELPER: Format Tanggal Saja (d F Y) untuk TTD
+    private function formatTglSaja($tanggal)
+    {
+        if (empty($tanggal)) return date('d F Y');
+        $bulan = [
+            1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+            'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
+        ];
+        $timestamp = strtotime($tanggal);
+        return date('d', $timestamp) . ' ' . $bulan[(int)date('m', $timestamp)] . ' ' . date('Y', $timestamp);
+    }
+
     // HELPER BARU: Update cache tanggal unik di index()
     private function updateTanggalSidangDropdown()
     {

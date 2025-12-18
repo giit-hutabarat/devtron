@@ -485,7 +485,58 @@ $path_logo = $base_url_clean . '/' . ltrim(esc($path_logo_instansi_db), '/'); //
                 </form>
         </div>
     </div>
+<div class="modal fade" id="modalConfigCetak" tabindex="-1" aria-hidden="true" data-bs-backdrop="static">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="background-color: #2D2D2D; color: #fff; border: 1px solid #444;">
+            <div class="modal-header" style="border-bottom: 1px solid #444;">
+                <h5 class="modal-title"><i class="fa-solid fa-gear me-2 text-warning"></i>Konfigurasi Data Cetak</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-3">Data ini akan tersimpan otomatis di browser (LocalStorage) agar tidak perlu input ulang.</p>
+                
+                <h6 class="text-primary border-bottom border-secondary pb-1 mb-2">1. Info Surat</h6>
+                <div class="row g-2 mb-3">
+                    <div class="col-md-6">
+                        <label class="form-label text-warning" style="font-size:0.8rem;">Nama Instansi (Kop)</label>
+                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label text-warning" style="font-size:0.8rem;">Kota (Tempat TTD)</label>
+                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgKota" placeholder="Contoh: Boyolali">
+                    </div>
+                </div>
 
+                <h6 class="text-success border-bottom border-secondary pb-1 mb-2">2. Pejabat Penandatangan</h6>
+                <div class="alert alert-dark border-secondary p-2 mb-2" style="font-size: 0.75rem;">
+                    <i class="fa-solid fa-circle-info me-1"></i> Jika dikosongkan, sistem akan menggunakan data JPU dari database & NIP Login Anda.
+                </div>
+                
+                <div class="mb-2">
+                    <label class="form-label" style="font-size:0.8rem;">Jabatan (Struktural)</label>
+                    <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgJabatan" placeholder="Contoh: KEPALA SEKSI TINDAK PIDANA UMUM">
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;">Nama Lengkap Pejabat</label>
+                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgNamaPejabat" placeholder="Nama Penandatangan...">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label" style="font-size:0.8rem;">NIP / NRP</label>
+                        <input type="text" class="form-control form-control-sm bg-dark text-white border-secondary" id="cfgNipPejabat" placeholder="NIP Penandatangan...">
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer" style="border-top: 1px solid #444;">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Batal</button>
+                <button type="button" class="btn btn-primary" id="btnFinalCetak">
+                    <i class="fa-solid fa-print me-2"></i> LANJUTKAN CETAK
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
     <script src="https://code.jquery.com/jquery-3.7.0.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
@@ -510,23 +561,28 @@ function updateBtnState() {
     var text = 'PROSES SELEKSI';
     var isDisabled = true;
     
-    // Logika button state (TIDAK DIUBAH, hanya text label)
-    if (totalChecked > 0) {
-        text = 'CETAK (' + totalChecked + ')';
-        if(isP37 || isP38) {
+    // LOGIC BARU:
+    // 1. Jika P38 dipilih -> Tombol SELALU AKTIF (karena cetak semua)
+    if (isP38) {
+        // Kalau P38 dipilih, tombol selalu AKTIF, tidak peduli checklist tabel
+        isDisabled = false;
+        text = 'PROSES CETAK SEMUA (P-38)';
+        if(isP37) text += ' & P-37';
+    } 
+    
+    // 2. Jika P37 dipilih -> Harus ada checklist
+    else if (totalChecked > 0) {
+        if(isP37) {
             isDisabled = false;
-            if(isP37 && isP38) text += ' P-37 & P-38';
-            else if(isP37) text += ' P-37';
-            else if(isP38) text += ' P-38';
+            text = 'CETAK (' + totalChecked + ') P-37';
         } else {
-             text = 'Pilih Dokumen (' + totalChecked + ' Data)';
-             isDisabled = false; 
+            text = 'Pilih Jenis Dokumen';
+            isDisabled = true;
         }
-    } else if (isP37 || isP38) {
-        text = 'Pilih Data Terdakwa';
-        isDisabled = true; 
+    } else {
+        text = 'Pilih Data / Dokumen';
+        isDisabled = true;
     }
-
 
     btn.prop('disabled', isDisabled);
     btn.html('<i class="fa-solid fa-file-word me-2"></i> ' + text);
@@ -647,6 +703,16 @@ $(document).ready(function() {
     });
     isDataTableInitialized = true;
 
+    // 2. SETUP MODAL (INISIALISASI DI AWAL BIAR GAK ERROR SAAT CLOSE)
+    // Kita simpan instance modal di variabel global biar bisa dipanggil dimanapun
+    var elModal = document.getElementById('modalConfigCetak');
+    var myAppModal = new bootstrap.Modal(elModal, {
+        backdrop: 'static',
+        keyboard: false
+    });
+
+    var formToSubmit = null; // Variabel simpan form
+
     // --- EVENT LISTENER Filter & Checkbox ---
     
     // Tanggal berubah
@@ -660,6 +726,10 @@ $(document).ready(function() {
     // Dokumen berubah
     $('#chkP37, #chkP38').on('change', updateBtnState);
 
+    // Tabel checklist berubah -> Cek tombol
+    $('#tableSidang tbody').on('change', '.row-checkbox', updateBtnState);
+    $('#checkAll').on('click', function() { /* ... logic check all ... */ updateBtnState(); });
+
     // Check All
     $('#checkAll').on('click', function() {
         var isChecked = this.checked;
@@ -667,43 +737,97 @@ $(document).ready(function() {
         updateBtnState();
     });
     
-    // --- LOGIKA FORM SUBMIT ---
-    
-    // KLIK TOMBOL HIJAU (FULL P38)
+    // 1. KLIK TOMBOL CETAK FULL (HIJAU)
     $('#btnFullP38').on('click', function() {
         var tgl = $('#inputTanggalHidden').val();
         if(!tgl) { alert("Pilih tanggal sidang dulu!"); return; }
-        if(confirm("Anda yakin ingin mencetak SEMUA surat P-38 untuk tanggal "+tgl+"?")) {
-            // Pastikan mode_cetak diubah sebelum submit
+
             $('#inputModeCetak').val('full_p38');
-            $('#formCetak').off('submit').submit();
-        }
+            $('#formCetak').submit();
     });
 
-    // SUBMIT FORM (PROSES SELEKSI)
+    // 2. INTERCEPT SUBMIT FORM (Untuk Validasi & Tampil Modal)
     $('#formCetak').on('submit', function(e){
+        e.preventDefault();
         if ($('#inputModeCetak').val() === 'full_p38') return true; 
 
-        var form = this;
+        var mode = $('#inputModeCetak').val();
         var countChecked = table.rows().nodes().to$().find('.row-checkbox:checked').length;
+        var isP38 = $('#chkP38').is(':checked');
 
-        // Validasi Minimum
-        if(countChecked === 0){ alert("Pilih minimal satu data untuk dicetak!"); e.preventDefault(); return false; }
-        if(!$('#chkP37').is(':checked') && !$('#chkP38').is(':checked')) { alert("Pilih minimal satu jenis dokumen (P-37 atau P-38)!"); e.preventDefault(); return false; }
+        // Validasi Manual (Jika bukan Full P38 dan bukan P38 Checklist)
         
-        // Trik Kirim Data (ambil data dari DataTables DOM saat ini)
+        if (mode !== 'full_p38') {
+             if (!isP38 && countChecked === 0){ 
+                alert("Pilih minimal satu data untuk dicetak!"); 
+                return false; 
+            }
+            if(!$('#chkP37').is(':checked') && !isP38) { 
+                alert("Pilih minimal satu jenis dokumen (P-37 atau P-38)!"); 
+                return false; 
+            }
+        }
+
+        // Simpan Form ke variabel global
+        formToSubmit = this;
+
+// 🔥 KOREKSI UTAMA DISINI: 
+        // Panggil .show() pada variabel global 'myAppModal' yg sudah dibuat di atas.
+        // JANGAN buat 'new bootstrap.Modal' lagi disini!
+        myAppModal.show();
+        });
+
+        // 3. TOMBOL "LANJUTKAN CETAK" DI DALAM MODAL
+    $('#btnFinalCetak').on('click', function() {
+        // A. Ambil Data dari Input Modal
+        var vInstansi = $('#cfgInstansi').val();
+        var vKota = $('#cfgKota').val();
+        var vJabatan = $('#cfgJabatan').val();
+        var vNama = $('#cfgNamaPejabat').val();
+        var vNip = $('#cfgNipPejabat').val();
+
+        // B. Masukkan Input Modal ke Hidden Input Form
+        $(formToSubmit).find('.extra-data').remove(); // Bersihkan sisa lama
+        
+        var inputs = [
+            { name: 'custom_instansi', val: vInstansi },
+            { name: 'custom_kota', val: vKota },
+            { name: 'ttd_jabatan', val: vJabatan },
+            { name: 'ttd_nama', val: vNama },
+            { name: 'ttd_nip', val: vNip }
+        ];
+
+        inputs.forEach(item => {
+            $('<input>').attr({type: 'hidden', name: item.name, value: item.val, class: 'extra-data'}).appendTo(formToSubmit);
+        });
+
+        // C. Handle Data Checklist (Pilih Data)
+        // Ambil ID dari checklist walaupun di pagination berbeda
         var selectedValues = [];
-        table.rows().nodes().to$().find('.row-checkbox:checked').each(function(){
-            selectedValues.push($(this).val());
-        });
+        if (table) {
+             table.rows().nodes().to$().find('.row-checkbox:checked').each(function(){
+                selectedValues.push($(this).val());
+            });
+        }
+        $('input[name="pilih_data[]"]').remove(); // Hapus input lama
+        if (selectedValues.length > 0) {
+            selectedValues.forEach(function(val) {
+                $(formToSubmit).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
+            });
+        }
 
-        // Hapus hidden input lama dan tambahkan yang baru
-        $('input[name="pilih_data[]"]').remove();
-        selectedValues.forEach(function(val) {
-            $(form).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
-        });
+        myAppModal.hide();
+                // Kosongkan form modal agar bersih saat dibuka lagi
+        $('#cfgInstansi').val('');
+        $('#cfgKota').val('');
+        $('#cfgJabatan').val('');
+        $('#cfgNamaPejabat').val('');
+        $('#cfgNipPejabat').val('');
+        setTimeout(() => {
+            formToSubmit.submit();
+        }, 300);
         
-        return true;
+
     });
     
     updateBtnState();

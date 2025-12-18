@@ -4,7 +4,8 @@
 *.zip
 *.rar
 *.log
-*.DS_Store
+.DS_Store
+**/.DS_Store
 *.json
 /xampp/
 /writable/cache/
