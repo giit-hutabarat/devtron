@@ -35,6 +35,8 @@ writable/debugbar/*
 !writable/debugbar/.gitkeep
 
 writable/arsip_sidang/*
+!writable/arsip_sidang/index.html
+!writable/arsip_sidang/.gitkeep
 
 # Ignore folder hasil generate test
 tests/_support/_generated
