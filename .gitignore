@@ -1,16 +1,81 @@
-/vendor
-/node_modules
+#--------------------------------------------------------------------
+# ENVIRONMENT
+#--------------------------------------------------------------------
+# File env berisi password database & setting sensitif. WAJIB di-ignore.
 .env
-*.zip
-*.rar
-*.log
+.env.boot
+.env.test
+.env.production
+
+#--------------------------------------------------------------------
+# CODEIGNITER 4 WRITABLE
+#--------------------------------------------------------------------
+# Kita ignore ISI foldernya (cache, logs, session),
+# tapi kita biarkan foldernya tetap ada (via !index.html atau !.gitkeep)
+# supaya saat di-clone orang lain, strukturnya tidak hilang/error.
+
+writable/cache/*
+!writable/cache/index.html
+!writable/cache/.gitkeep
+
+writable/logs/*
+!writable/logs/index.html
+!writable/logs/.gitkeep
+
+writable/session/*
+!writable/session/index.html
+!writable/session/.gitkeep
+
+writable/uploads/*
+!writable/uploads/index.html
+!writable/uploads/.gitkeep
+
+writable/debugbar/*
+!writable/debugbar/index.html
+!writable/debugbar/.gitkeep
+
+# Ignore folder hasil generate test
+tests/_support/_generated
+
+#--------------------------------------------------------------------
+# DEPENDENCIES
+#--------------------------------------------------------------------
+# Folder vendor digenerate oleh composer, tidak perlu di-upload.
+/vendor/
+/node_modules/
+package-lock.json
+
+#--------------------------------------------------------------------
+# OS & IDE FILES (SAMPAH SISTEM)
+#--------------------------------------------------------------------
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Mac (Penyebab error permission kamu tadi)
 .DS_Store
-**/.DS_Store
-*.json
-/xampp/
-/writable/cache/
-/public/uploads/
-/writable/*.json
+.AppleDouble
+.LSOverride
+._*
+
+# VS Code / Editor settings
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+nbproject/
+
+#--------------------------------------------------------------------
+# MISC
+#--------------------------------------------------------------------
+# Log errors php
+php_error.log
+error.log
+
+# Build files
+/build/
+/public/hot
+/public/storage
+phpunit.xml
 /app/Config/Database.php
-/.idea
-/.vscode

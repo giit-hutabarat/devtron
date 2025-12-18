@@ -809,7 +809,10 @@ $(document).ready(function() {
                 selectedValues.push($(this).val());
             });
         }
-        $('input[name="pilih_data[]"]').remove(); // Hapus input lama
+        // 🔥 PERBAIKAN DISINI: CUMA HAPUS INPUT HIDDEN, JANGAN HAPUS CHECKBOX!
+        // Kode Lama: $('input[name="pilih_data[]"]').remove();  <-- INI SALAH (Checkbox ikut kehapus)
+        // Kode Baru:
+        $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();// Hapus input lama
         if (selectedValues.length > 0) {
             selectedValues.forEach(function(val) {
                 $(formToSubmit).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val(val));
