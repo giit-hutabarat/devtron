@@ -457,22 +457,52 @@ class SidangController extends BaseController
 
     public function proses()
     {
-        // --- 1. SECURITY VALIDATION ---
-        if (!$this->validate([
-            'tanggal_terpilih' => 'required|valid_date[d-m-Y]',
-            'mode_cetak'       => 'required|in_list[seleksi,full_p38,p37_seleksi]',
-            // Pastikan pilih_data adalah array jika dikirim
-            'pilih_data'       => 'permit_empty', 
-        ])) {
-            return redirect()->back()->with('error', 'Data input tidak valid / manipulasi terdeteksi.');
-        }
-        // 1. AMBIL INPUT DASAR
-        $selectedNoPerkara = $this->request->getPost('pilih_data');
-        $docTypes = $this->request->getPost('jenis_dokumen');
-        $mode = $this->request->getPost('mode_cetak');
-        $tanggalTerpilih = $this->request->getPost('tanggal_terpilih');
 
-        // 2. DATA MODAL KONFIGURASI
+     // --- 1. AMBIL INPUT RAW DULU ---
+        $selectedNoPerkara = $this->request->getPost('pilih_data');
+        $docTypes          = $this->request->getPost('jenis_dokumen');
+        $mode              = $this->request->getPost('mode_cetak');
+        $tanggalTerpilih   = $this->request->getPost('tanggal_terpilih');
+
+        // --- 2. VALIDASI MANUAL (LEBIH AMAN DARIPADA $this->validate) ---
+        // Kita validasi manual agar pesan error lebih jelas dan tidak crash
+        
+        // Cek 1: Tanggal Wajib & Format Benar
+        if (empty($tanggalTerpilih)) {
+            return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
+        }
+        
+        $d = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih);
+        if ($d && $d->format('d-m-Y') === $tanggalTerpilih) {
+            $dbFormatDate = $d->format('Y-m-d'); // Konversi aman ke YYYY-MM-DD
+        } else {
+            return redirect()->back()->with('error', 'Format tanggal tidak valid (Harus DD-MM-YYYY).');
+        }
+
+        // Cek 2: Mode Cetak
+        $allowedModes = ['seleksi', 'full_p38'];
+        if (!in_array($mode, $allowedModes)) {
+            // Default ke seleksi jika aneh-aneh
+            $mode = 'seleksi';
+        }
+
+        // Cek 3: Logika Data & Dokumen
+        if ($mode == 'full_p38') {
+            // Kalau full P-38, tidak butuh pilih_data, tapi butuh tanggal (sudah dicek diatas)
+        } else {
+            // Kalau mode seleksi, WAJIB pilih minimal 1 data
+            if (empty($selectedNoPerkara)) {
+                return redirect()->back()->with('error', 'Anda belum memilih data Terdakwa (Centang minimal satu).');
+            }
+        }
+
+        if (empty($docTypes)) {
+            return redirect()->back()->with('error', 'Jenis dokumen (P-37 / P-38) belum dipilih.');
+        }
+
+        // --- 3. PROSES DATA LANJUTAN ---
+        
+        // Data Modal Konfigurasi
         $customInstansi   = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
         $customKota       = $this->request->getPost('custom_kota') ?: 'Indonesia';
         $customNomorSurat = $this->request->getPost('custom_nomor_surat') ?: 'B-......./.......'; 
@@ -480,37 +510,33 @@ class SidangController extends BaseController
         $ttdNama          = $this->request->getPost('ttd_nama');
         $ttdNip           = $this->request->getPost('ttd_nip');
 
-        if (empty($tanggalTerpilih)) return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
-
-        // 3. SETUP FOLDER
+        // Setup Folder
         $hariIni = date('Y-m-d');
         $pathArsip = WRITEPATH . 'arsip_sidang';
         $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
-        if (!is_dir($pathArsip)) mkdir($pathArsip, 0777, true);
-        if (!is_dir($folderBackup)) mkdir($folderBackup, 0777, true);
+        
+        if (!is_dir($pathArsip)) @mkdir($pathArsip, 0777, true);
+        if (!is_dir($folderBackup)) @mkdir($folderBackup, 0777, true);
 
         $generatedFiles = [];
         $targetData = [];
-        $dbFormatDate = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih)->format('Y-m-d');
         
-        // Format Tanggal untuk Nama File
+        // Format Tanggal untuk Nama File (Aman untuk Windows/Linux)
         $fileDateStr = str_replace('/', '-', $tanggalTerpilih); 
 
-        // 4. LOGIC PENGAMBILAN DATA
-        $isP38 = (is_array($docTypes) && in_array('p38', $docTypes));
-        
+        // Query Database
         if ($mode == 'full_p38') {
             $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
+            // Force tambahkan P38 ke doctypes jika belum ada
             if (!is_array($docTypes)) $docTypes = [];
             if (!in_array('p38', $docTypes)) $docTypes[] = 'p38';
         } else {
-            if(empty($selectedNoPerkara)) return redirect()->back()->with('error', 'Pilih minimal satu data Terdakwa!');
-            if(empty($docTypes)) return redirect()->back()->with('error', 'Pilih jenis dokumen!');
             $targetData = $this->sidangModel->whereIn('nomor_perkara', $selectedNoPerkara)->findAll();
         }
 
-        if (empty($targetData)) return redirect()->back()->with('error', 'Data tidak ditemukan di database.');
-
+        if (empty($targetData)) {
+            return redirect()->back()->with('error', 'Data tidak ditemukan di database untuk tanggal/pilihan tersebut.');
+        }
         // ==========================================================
         // PROSES 1: GENERATE P-37 (Satu per satu)
         // ==========================================================

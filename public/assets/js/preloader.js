@@ -1,37 +1,39 @@
 /**
- * GLOBAL PRELOADER CONTROLLER
- * Cara pakai di script lain:
- * - Loader.show() -> Munculin loading
- * - Loader.hide() -> Sembunyiin loading
+ * GLOBAL PRELOADER CONTROLLER (FIXED VERSION)
  */
-
 const Loader = {
     element: null,
     
     init: function() {
         this.element = document.getElementById('global-preloader');
         
-        // Otomatis hide saat halaman selesai loading (Native)
+        // Otomatis hide saat halaman selesai loading
         window.addEventListener('load', () => {
-            this.hide(800); // Delay dikit biar smooth
+            this.hide(800); 
         });
     },
 
     show: function() {
         if(this.element) {
-            this.element.classList.remove('fade-out');
-            this.element.style.display = 'flex'; // Pastikan display flex
+            this.element.style.display = 'flex'; // Munculkan dulu
+            // Sedikit delay agar transisi CSS terbaca
+            setTimeout(() => {
+                this.element.classList.remove('fade-out');
+            }, 10);
         }
     },
 
     hide: function(delay = 0) {
         if(this.element) {
             setTimeout(() => {
+                // 1. Mulai animasi fade-out (opacity: 0)
                 this.element.classList.add('fade-out');
-                // Optional: set display none after transition to save memory
+                
+                // 2. TUNGGU sampai animasi selesai, LALU hilangkan div dari layar
+                // PENTING: Baris ini jangan dikomentari!
                 setTimeout(() => {
-                    // if(this.element.classList.contains('fade-out')) this.element.style.display = 'none';
-                }, 600);
+                    this.element.style.display = 'none'; // Agar klik tembus ke bawah
+                }, 600); 
             }, delay);
         }
     }
