@@ -15,11 +15,11 @@
         "google/apiclient": "^2.14",
         "kint-php/kint": "^4.1.1",
         "laminas/laminas-escaper": "^2.9",
+        "mpdf/mpdf": "^8.2",
         "phpoffice/phpword": "^1.1",
         "psr/log": "^1.1",
         "spomky-labs/otphp": "^11.3",
         "y0lk/sqldumper": "^0.2.1"
-
     },
     "require-dev": {
         "codeigniter/coding-standard": "^1.1",

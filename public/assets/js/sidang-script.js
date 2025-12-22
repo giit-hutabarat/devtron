@@ -302,21 +302,57 @@ $(document).ready(function() {
         myAppModal.show();
     });
 
-    // 6. FINAL PROSES DI MODAL
+    // 6. FINAL PROSES DI MODAL (DENGAN VALIDASI)
     $('#btnFinalCetak').on('click', function() {
+        
+        // --- 1. RESET VALIDASI ---
+        $('#alertModal').addClass('d-none');
+        $('.form-control-modern').removeClass('is-invalid');
+        let isValid = true;
+
+        // --- 2. CEK INPUT WAJIB ---
+        // Loop semua input yang punya class 'validate-input'
+        $('.validate-input').each(function() {
+            // Skip Nomor Surat jika parent-nya (blockNomorSurat) sedang hidden (P-37 mode)
+            if ($(this).attr('id') === 'cfgNomorSurat' && $('#blockNomorSurat').is(':hidden')) {
+                return; 
+            }
+
+            if ($.trim($(this).val()) === '') {
+                $(this).addClass('is-invalid');
+                isValid = false;
+            }
+        });
+
+        if (!isValid) {
+            $('#alertModal').removeClass('d-none');
+            // Efek getar biar sadar
+            $('.modal-content').addClass('shake-anim');
+            setTimeout(() => $('.modal-content').removeClass('shake-anim'), 500);
+            return false; // Stop proses
+        }
+
+        // --- 3. JIKA VALID, LANJUT SUBMIT ---
         $(formToSubmit).find('.extra-data').remove(); 
+        
+        var formatSelected = $('input[name="formatOutput"]:checked').val(); // Ambil Word/PDF
+
         var inputs = [
             { name: 'custom_nomor_surat', val: $('#cfgNomorSurat').val() },
             { name: 'custom_instansi', val: $('#cfgInstansi').val() },
             { name: 'custom_kota', val: $('#cfgKota').val() },
             { name: 'ttd_jabatan', val: $('#cfgJabatan').val() },
+            { name: 'ttd_pangkat', val: $('#cfgPangkat').val() }, // INPUT BARU
             { name: 'ttd_nama', val: $('#cfgNamaPejabat').val() },
-            { name: 'ttd_nip', val: $('#cfgNipPejabat').val() }
+            { name: 'ttd_nip', val: $('#cfgNipPejabat').val() },
+            { name: 'output_format', val: formatSelected }         // INPUT BARU
         ];
+
         inputs.forEach(item => {
             $('<input>').attr({type: 'hidden', name: item.name, value: item.val, class: 'extra-data'}).appendTo(formToSubmit);
         });
 
+        // Append Checkbox Data
         $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();
         if (table) {
              table.rows().nodes().to$().find('.row-checkbox:checked').each(function(){
@@ -324,12 +360,12 @@ $(document).ready(function() {
             });
         }
 
-        $(this).blur();
-        myAppModal.hide();
-        $('#modalConfigCetak input').val('');
-
+        $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Memproses...');
+        
         setTimeout(() => {
             formToSubmit.submit();
-        }, 300);
+            myAppModal.hide();
+            $(this).prop('disabled', false).html('<i class="fa-solid fa-print me-2"></i> LANJUTKAN CETAK');
+        }, 500);
     });
 });

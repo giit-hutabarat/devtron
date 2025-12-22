@@ -24,17 +24,17 @@
         </a>
         
         <div class="ms-auto d-flex align-items-center">
-            <div class="glass-nav-group">
-                <a href="<?= base_url('/') ?>" class="glass-btn" title="Dashboard">
-                    <i class="fa-solid fa-house"></i>
-                    <span class="d-none d-md-inline ms-2">Dashboard</span>
-                </a>
-                <div class="divider-vertical"></div>
-                <a href="<?= base_url('sidang/logout') ?>" class="glass-btn text-danger-glow" onclick="return confirm('Keluar?');" title="Logout">
-                    <i class="fa-solid fa-power-off"></i>
-                </a>
-            </div>
-        </div>
+    <div class="glass-nav-group">
+        <a href="<?= base_url('/') ?>" class="glass-btn" title="Dashboard">
+            <i class="fa-solid fa-house"></i>
+            <span class="d-none d-md-inline ms-2">Dashboard</span>
+        </a>
+        <div class="divider-vertical"></div>
+        <a href="<?= base_url('sidang/logout') ?>" class="glass-btn text-danger-glow" onclick="return confirm('Keluar?');" title="Logout">
+            <i class="fa-solid fa-power-off"></i>
+        </a>
+    </div>
+</div>
     </div>
 </nav>
 
@@ -149,36 +149,31 @@
                 
                 <div class="modal-body p-4">
                     
-                    <div id="alertModal" class="alert alert-danger py-2 small d-none">
-                        <i class="fa-solid fa-circle-exclamation me-2"></i> Harap lengkapi semua kolom wajib!
-                    </div>
-
                     <div class="modal-section-label">
                         <i class="fa-solid fa-building-flag"></i> 1. Kop & Lokasi
                     </div>
                     
                     <div class="mb-3" id="blockNomorSurat" style="display:none;">
-                        <label class="form-label-modern required-field">Nomor Surat</label>
+                        <label class="form-label-modern">Nomor Surat</label>
                         <div class="input-group">
                             <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-envelope-open-text"></i></span>
-                            <input type="text" class="form-control form-control-modern validate-input" id="cfgNomorSurat" placeholder="Contoh: B-123/M.3.29/Es.2/12/2025">
+                            <input type="text" class="form-control form-control-modern" id="cfgNomorSurat" placeholder="Contoh: B-123/M.3.29/Es.2/12/2025">
                         </div>
-                        <div class="invalid-feedback-custom">Nomor surat wajib diisi untuk P-38.</div>
                     </div>
 
                     <div class="row g-3 mb-4">
                         <div class="col-md-7">
-                            <label class="form-label-modern required-field">Nama Instansi</label>
+                            <label class="form-label-modern">Nama Instansi</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-landmark"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
+                                <input type="text" class="form-control form-control-modern" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
                             </div>
                         </div>
                         <div class="col-md-5">
-                            <label class="form-label-modern required-field">Kota (Tempat TTD)</label>
+                            <label class="form-label-modern">Kota (Tempat TTD)</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-map-location-dot"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgKota" placeholder="Contoh: Boyolali">
+                                <input type="text" class="form-control form-control-modern" id="cfgKota" placeholder="Contoh: Boyolali">
                             </div>
                         </div>
                     </div>
@@ -187,69 +182,40 @@
                         <i class="fa-solid fa-signature"></i> 2. Penandatangan
                     </div>
 
-                    <div class="info-box-modern mb-3">
+                    <div class="info-box-modern">
                         <i class="fa-solid fa-circle-info mt-1"></i>
                         <div>
-                            <strong>PENTING:</strong> Data Penandatangan wajib diisi lengkap untuk keperluan arsip digital.
+                            <strong>Opsional:</strong> Jika bagian ini dikosongkan, sistem otomatis menggunakan data Jaksa (JPU) dari database & NIP Anda saat ini.
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label-modern required-field">Jabatan Struktural</label>
-                            <div class="input-group">
-                                <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-briefcase"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgJabatan" placeholder="KEPALA SEKSI...">
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label-modern required-field">Pangkat / Golongan</label>
-                            <div class="input-group">
-                                <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-star"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgPangkat" placeholder="Jaksa Madya (IV/a)">
-                            </div>
+                    <div class="mb-3">
+                        <label class="form-label-modern">Jabatan Struktural</label>
+                        <div class="input-group">
+                            <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-briefcase"></i></span>
+                            <input type="text" class="form-control form-control-modern" id="cfgJabatan" placeholder="Contoh: KEPALA SEKSI TINDAK PIDANA UMUM">
                         </div>
                     </div>
 
-                    <div class="row g-3 mb-4">
+                    <div class="row g-3">
                         <div class="col-md-7">
-                            <label class="form-label-modern required-field">Nama Lengkap Pejabat</label>
+                            <label class="form-label-modern">Nama Lengkap Pejabat</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-user-tie"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgNamaPejabat" placeholder="Nama lengkap...">
+                                <input type="text" class="form-control form-control-modern" id="cfgNamaPejabat" placeholder="Nama lengkap...">
                             </div>
                         </div>
                         <div class="col-md-5">
-                            <label class="form-label-modern required-field">NIP / NRP</label>
+                            <label class="form-label-modern">NIP / NRP</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-id-card"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgNipPejabat" placeholder="199...">
+                                <input type="text" class="form-control form-control-modern" id="cfgNipPejabat" placeholder="199...">
                             </div>
-                        </div>
-                    </div>
-
-                    <div class="modal-section-label">
-                        <i class="fa-solid fa-file-export"></i> 3. Format Output
-                    </div>
-
-                    <div class="d-flex gap-3">
-                        <div class="form-check custom-radio-box w-50">
-                            <input class="form-check-input" type="radio" name="formatOutput" id="fmtWord" value="word" checked>
-                            <label class="form-check-label w-100" for="fmtWord">
-                                <i class="fa-solid fa-file-word text-primary me-2"></i> Microsoft Word (.docx)
-                                <div class="small text-muted">Bisa diedit kembali</div>
-                            </label>
-                        </div>
-                        <div class="form-check custom-radio-box w-50">
-                            <input class="form-check-input" type="radio" name="formatOutput" id="fmtPdf" value="pdf">
-                            <label class="form-check-label w-100" for="fmtPdf">
-                                <i class="fa-solid fa-file-pdf text-danger me-2"></i> PDF Document (.pdf)
-                                <div class="small text-muted">Siap cetak / arsip</div>
-                            </label>
                         </div>
                     </div>
 
                 </div>
+
                 <div class="modal-footer">
                     <button type="button" class="btn btn-cancel-modern" data-bs-dismiss="modal">Batal</button>
                     <button type="button" class="btn btn-action-modern" id="btnFinalCetak">
