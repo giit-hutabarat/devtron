@@ -6,9 +6,11 @@ body {
     display: flex;
     justify-content: center;
     align-items: center;
-    height: 100vh;
+    min-height: 100vh;
     margin: 0;
+    padding: 20px;
     color: #333;
+    box-sizing: border-box;
 }
 
 /* CARD CONTAINER */
@@ -21,6 +23,7 @@ body {
     max-width: 400px;
     text-align: center;
     transition: transform 0.3s ease;
+    margin: auto;
 }
 
 .login-container:hover {
@@ -30,7 +33,7 @@ body {
 
 /* LOGO & TITLE */
 .logo-login {
-    max-width: 90px;
+    max-width: 80px;
     height: auto;
     margin-bottom: 20px;
 }
@@ -89,6 +92,7 @@ body {
     cursor: pointer;
     color: #aaa;
     transition: color 0.3s;
+    z-index: 2;
 }
 
 .toggle-password:hover {
@@ -133,9 +137,10 @@ body {
     padding: 12px;
     border-radius: 8px;
     margin-bottom: 20px;
-    font-size: 0.9rem;
+    font-size: 0.85rem;
     display: flex;
     align-items: center;
+    text-align: left;
     gap: 10px;
 }
 
@@ -145,4 +150,14 @@ body {
     margin-top: 30px;
     border-top: 1px solid #eee;
     padding-top: 20px;
+}
+
+/* --- RESPONSIVE MOBILE TWEAKS --- */
+@media (max-width: 480px) {
+    body { padding: 15px; } /* Kurangi padding body */
+    .login-container {
+        padding: 25px 20px; /* Kurangi padding card */
+    }
+    .instansi-name { font-size: 1rem; }
+    .btn-submit { padding: 12px; font-size: 0.95rem; }
 }

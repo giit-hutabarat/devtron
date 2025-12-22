@@ -49,9 +49,9 @@ function updateBtnState() {
         if (isP38) {
             isDisabled = false; 
             if (totalChecked > 0) {
-                text = 'CETAK (' + totalChecked + ') DATA P-38';
+                text = 'CETAK (' + totalChecked + ') BERKAS P-38';
             } else {
-                text = 'CETAK SEMUA DATA P-38';
+                text = 'CETAK SEMUA BERKAS P-38';
                 btnClass = 'btn-success-custom'; 
             }
         } 
@@ -59,10 +59,10 @@ function updateBtnState() {
         else if (isP37) {
             if (totalChecked > 0) {
                 isDisabled = false;
-                text = 'CETAK (' + totalChecked + ') DATA P-37';
+                text = 'CETAK (' + totalChecked + ') BERKAS P-37';
             } else {
                 isDisabled = true;
-                text = 'Pilih Minimal 1 Data Terdakwa';
+                text = 'Pilih Minimal 1 BERKAS Terdakwa';
             }
         }
     }
@@ -145,7 +145,17 @@ function initDataTable(dataSet) {
         "columnDefs": [
             { "targets": [0, 4], "className": "text-center", "orderable": false }, 
             { "targets": 5, "visible": false }
-        ]
+        ],
+        // --- TAMBAHAN PENTING UNTUK MOBILE CSS ---
+        "createdRow": function (row, data, dataIndex) {
+            // Kita suntikkan atribut data-label ke setiap TD agar CSS bisa membacanya
+            var columns = ['Pilih', 'Nama Terdakwa', 'Nomor Perkara', 'Jaksa Penuntut Umum', 'Aksi'];
+            $('td', row).each(function (i) {
+                if (columns[i]) {
+                    $(this).attr('data-label', columns[i]);
+                }
+            });
+        }
     });
 }
 
@@ -189,6 +199,22 @@ $(document).ready(function() {
     initDataTable([]);
     var elModal = document.getElementById('modalConfigCetak');
     var myAppModal = new bootstrap.Modal(elModal, { backdrop: 'static', keyboard: false });
+    
+    // --- TAMBAHAN FIX ERROR ARIA-HIDDEN ---
+    // Paksa hapus atribut aria-hidden saat modal mau muncul
+    elModal.addEventListener('show.bs.modal', function () {
+        this.removeAttribute('aria-hidden');
+    });
+    
+    // Pastikan benar-benar hilang saat sudah muncul
+    elModal.addEventListener('shown.bs.modal', function () {
+        this.removeAttribute('aria-hidden');
+    });
+    // --------------------------------------
+    
+    
+    
+    
     var formToSubmit = null; 
 
     // 4. EVENT LISTENER

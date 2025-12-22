@@ -1,0 +1,82 @@
+/* ========================================= */
+/* --- GLOBAL PRELOADER: CYBER STYLE --- */
+/* ========================================= */
+#global-preloader {
+    position: fixed; 
+    top: 0; left: 0; 
+    width: 100%; height: 100%;
+    background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%);
+    z-index: 99999; /* Paling Depan */
+    display: flex; 
+    flex-direction: column; 
+    align-items: center; 
+    justify-content: center;
+    transition: opacity 0.5s ease-out, visibility 0.5s ease-out;
+    opacity: 1;
+    visibility: visible;
+}
+
+/* Class untuk menyembunyikan loader */
+#global-preloader.fade-out {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none; /* Agar bisa diklik tembus */
+}
+
+.loader-wrapper {
+    position: relative;
+    width: 140px; height: 140px;
+    display: flex; align-items: center; justify-content: center;
+    margin-bottom: 25px;
+}
+
+.logo-main {
+    width: 80px; height: auto; z-index: 2;
+    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.3));
+    animation: pulseGlow 2s infinite ease-in-out;
+}
+
+.ring-one {
+    position: absolute; width: 100%; height: 100%;
+    border: 2px solid transparent;
+    border-top: 2px solid #FFC107; border-right: 2px solid #FFC107;
+    border-radius: 50%;
+    animation: spinRight 2s linear infinite;
+    box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);
+}
+
+.ring-two {
+    position: absolute; width: 75%; height: 75%;
+    border: 2px solid transparent;
+    border-bottom: 2px solid #4CAF50; border-left: 2px solid #4CAF50;
+    border-radius: 50%;
+    animation: spinLeft 1.5s linear infinite;
+}
+
+.loading-text {
+    font-family: 'Courier New', monospace;
+    color: #b0b0b0; font-size: 0.85rem; font-weight: 600;
+    letter-spacing: 4px; text-transform: uppercase;
+    margin-bottom: 15px; animation: blinkText 1.5s infinite;
+}
+
+.loading-bar-container {
+    width: 200px; height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 4px; overflow: hidden;
+}
+
+.loading-bar-fill {
+    height: 100%; width: 0%;
+    background: linear-gradient(90deg, #FFC107, #4CAF50);
+    animation: loadProgress 2.5s ease-in-out forwards;
+    border-radius: 4px;
+    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+}
+
+/* ANIMATIONS */
+@keyframes spinRight { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+@keyframes spinLeft { 0% { transform: rotate(0deg); } 100% { transform: rotate(-360deg); } }
+@keyframes pulseGlow { 0% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2)); } 50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); } 100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2)); } }
+@keyframes blinkText { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+@keyframes loadProgress { 0% { width: 0%; } 40% { width: 30%; } 70% { width: 80%; } 100% { width: 100%; } }

@@ -11,14 +11,16 @@ body {
     padding: 20px;
 }
 
+/* Update Bagian .container */
 .container {
     max-width: 600px;
-    width: 100%;
+    width: 95%; /* Ganti 100% jadi 95% biar ada jarak kiri-kanan di HP */
     background-color: #fff;
     border-radius: 16px;
     box-shadow: 0 10px 25px rgba(0,0,0,0.08);
     overflow: hidden;
     position: relative;
+    /* Hapus margin auto jika body sudah flex center */
 }
 
 .header-box {
@@ -45,6 +47,7 @@ body {
     text-align: center;
 }
 
+/* Update Bagian QR Frame */
 .qr-frame {
     display: inline-block;
     padding: 15px;
@@ -52,13 +55,16 @@ body {
     border-radius: 12px;
     background: #f8fbff;
     margin-bottom: 20px;
+    max-width: 100%; /* Safety untuk layar sempit banget */
+    box-sizing: border-box;
 }
 
 .qr-image {
     display: block;
-    width: 200px;
-    height: 200px;
+    max-width: 100%; /* Biar gambar mengecil otomatis */
+    height: auto;
     border-radius: 8px;
+    margin: 0 auto; /* Center image */
 }
 
 .alert-error {
@@ -92,14 +98,16 @@ body {
     display: block;
 }
 
+/* Secret Key Section Responsif */
 .secret-display {
     font-family: 'Courier New', monospace;
-    font-size: 1.2rem;
+    font-size: 1.1rem; /* Kecilin dikit */
     font-weight: bold;
     color: #333;
-    letter-spacing: 2px;
+    letter-spacing: 1px; /* Kurangi spacing biar muat */
     margin: 10px 0;
-    word-break: break-all;
+    word-break: break-all; /* WAJIB: Biar kode panjang turun ke bawah */
+    padding: 10px;
 }
 
 .blur-text {
@@ -108,24 +116,19 @@ body {
     filter: blur(1px);
 }
 
+/* Tombol Action (Lihat/Salin) Responsive */
 .action-buttons {
     display: flex;
     justify-content: center;
     gap: 10px;
     margin-top: 10px;
+    flex-wrap: wrap; /* Tombol turun ke bawah kalau layar sempit */
 }
 
 .btn {
-    padding: 8px 16px;
-    border: none;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    transition: all 0.2s;
+    flex: 1 1 auto; /* Tombol menyesuaikan lebar */
+    justify-content: center;
+    min-width: 100px; /* Minimal lebar tombol */
 }
 
 .btn-outline {
@@ -166,4 +169,11 @@ body {
 
 .btn-back:hover {
     color: #343a40;
+}
+
+/* Tambahan Media Query Khusus Setup QR */
+@media (max-width: 480px) {
+    .header-box { padding: 20px 15px; }
+    .content-box { padding: 20px 15px; }
+    .secret-display { font-size: 1rem; }
 }

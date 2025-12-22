@@ -26,7 +26,7 @@ $uri = service('uri');
 </head>
 
 <body>
-<?= view('\App\Modules\Loading\Views\loading_template'); ?>
+<?= $this->include('art/preloader') ?>
 <div id="app">
         <v-app>
             <v-app-bar app color="white" light elevation="2">

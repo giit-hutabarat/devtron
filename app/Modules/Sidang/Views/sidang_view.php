@@ -13,6 +13,7 @@
 
 </head>
 <body>
+    <?= $this->include('art/preloader') ?>
 <nav class="navbar navbar-expand-lg">
     <div class="container">
         <a class="navbar-brand" href="#">
@@ -22,17 +23,18 @@
             <span><?= esc($nama_instansi_app) ?></span>
         </a>
         
-        <div class="ms-auto d-flex align-items-center"> 
-            
-            <a href="<?= base_url('/') ?>" class="btn btn-outline-light btn-sm me-2">
-                 <i class="fa-solid fa-home me-1"></i> Kembali ke Dashboard
-            </a>
-            
-            <a href="<?= base_url('sidang/logout') ?>" class="btn btn-danger btn-sm" 
-               onclick="return confirm('Anda yakin ingin keluar dan mengakhiri ?');">
-                 <i class="fa-solid fa-right-from-bracket me-1"></i> Logout
-            </a>
-        </div>
+        <div class="ms-auto d-flex align-items-center">
+    <div class="glass-nav-group">
+        <a href="<?= base_url('/') ?>" class="glass-btn" title="Dashboard">
+            <i class="fa-solid fa-house"></i>
+            <span class="d-none d-md-inline ms-2">Dashboard</span>
+        </a>
+        <div class="divider-vertical"></div>
+        <a href="<?= base_url('sidang/logout') ?>" class="glass-btn text-danger-glow" onclick="return confirm('Keluar?');" title="Logout">
+            <i class="fa-solid fa-power-off"></i>
+        </a>
+    </div>
+</div>
     </div>
 </nav>
 
@@ -40,17 +42,26 @@
         <div class="card-custom">
             
             <div class="card-header-custom">
-                <div class="d-flex align-items-center">
-                    <i class="fa-solid fa-building-columns me-3" style="font-size: 1.5rem; color:#fff;"></i>
-                    <div>
-                        <h5 class="m-0 fw-bold text-white">CETAK BERKAS SIDANG</h5>
-                        <small class="text-white" style="font-size: 0.85rem;">Nama Pegawai: <?= esc($nama_pegawai) ?> | User NIP: <?= esc($nip_user) ?></small>
+                <div class="d-flex flex-column flex-md-row justify-content-between align-items-center w-100 gap-3">
+                    
+                    <div class="d-flex align-items-center w-100">
+                        <i class="fa-solid fa-building-columns me-3 d-none d-sm-block" style="font-size: 1.5rem; color:#fff;"></i>
+                        <div class="text-center text-md-start w-100">
+                            <h5 class="m-0 fw-bold text-white text-uppercase" style="letter-spacing:1px;">CETAK BERKAS SIDANG</h5>
+                            <small class="text-white opacity-75 d-block mt-1">
+                                <i class="fa-solid fa-user me-1"></i> <?= esc($nama_pegawai) ?> 
+                                <span class="d-none d-sm-inline">| NIP: <?= esc($nip_user) ?></span>
+                            </small>
+                        </div>
+                    </div>
+
+                    <div class="w-100 w-md-auto text-center text-md-end">
+                        <a href="<?= base_url('/sidang/sync') ?>" id="btnSyncData" 
+                           class="btn btn-light btn-sm fw-bold text-primary shadow-sm w-100 w-md-auto py-2">
+                            <i class="fa-solid fa-cloud-arrow-down me-2"></i> SINKRONISASI
+                        </a>
                     </div>
                 </div>
-                <a href="<?= base_url('/sidang/sync') ?>" id="btnSyncData" 
-                class="btn btn-outline-light btn-sm fw-bold px-3 py-2">
-                <i class="fa-solid fa-cloud-arrow-down me-2"></i> SINKRONISASI DATA
-                </a>
             </div>
 
             <form action="<?= base_url('/sidang/proses') ?>" method="post" id="formCetak">
@@ -59,28 +70,24 @@
                 <input type="hidden" name="tanggal_terpilih" id="inputTanggalHidden" value="">
 
                 <div class="filter-box">
-                    <div class="row g-3 align-items-end"> 
-                        <div class="col-md-4">
+                    <div class="row g-3"> 
+                        <div class="col-12 col-md-4">
                             <label class="form-label"><i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang</label>
-                            <select id="dateFilter" class="form-select">
+                            <select id="dateFilter" class="form-select shadow-sm">
                                 <?php $hasDates = !empty($opt_tanggal); ?>
                                 <option value="" selected disabled>
-                                    <?= (!$hasDates) ? '-- TIDAK ADA DATA SIDANG --' : '-- PILIH TANGGAL --' ?>
+                                    <?= (!$hasDates) ? '-- TIDAK ADA DATA --' : '-- PILIH TANGGAL --' ?>
                                 </option>
-                                <?php if ($hasDates): ?>
-                                    <?php foreach($opt_tanggal as $tgl): ?>
-                                        <option value="<?= esc($tgl) ?>">
-                                            <?= esc($tgl) ?>
-                                        </option>
-                                    <?php endforeach; ?>
-                                <?php endif; ?>
+                                <?php if ($hasDates): foreach($opt_tanggal as $tgl): ?>
+                                    <option value="<?= esc($tgl) ?>"><?= esc($tgl) ?></option>
+                                <?php endforeach; endif; ?>
                             </select>
                         </div>
 
-                        <div class="col-md-4">
+                        <div class="col-12 col-md-4">
                             <label class="form-label"><i class="fa-solid fa-file-contract me-2"></i> 2. Jenis Dokumen</label>
-                            <div class="custom-check-group">
-                                <div class="form-check me-3">
+                            <div class="custom-check-group d-flex justify-content-around align-items-center">
+                                <div class="form-check">
                                     <input class="form-check-input" type="checkbox" name="jenis_dokumen[]" value="p37" id="chkP37">
                                     <label class="form-check-label" for="chkP37">Form P-37</label>
                                 </div>
@@ -91,15 +98,14 @@
                             </div>
                         </div>
 
-                        <div class="col-md-4 text-end">
-                            <div class="d-flex flex-column gap-2"> 
-                                <button type="submit" id="btnProses" class="btn btn-cetak w-100">
-                                    <i class="fa-solid fa-file-word me-2"></i> PROSES SELEKSI
-                                </button>
-                            </div>
+                        <div class="col-12 col-md-4 d-flex align-items-end">
+                            <button type="submit" id="btnProses" class="btn btn-cetak w-100 shadow-sm">
+                                <i class="fa-solid fa-file-word me-2"></i> PROSES SELEKSI
+                            </button>
                         </div>
                     </div>
                 </div>
+
                 <div class="table-responsive mt-3">
                     
                     <?php if (session()->getFlashdata('error')) : ?>
