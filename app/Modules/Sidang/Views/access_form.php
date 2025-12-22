@@ -24,6 +24,7 @@
     </script>
 </head>
 <body>
+    <?= $this->include('art/preloader') ?>
 
     <noscript>
         <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center; text-align:center;">

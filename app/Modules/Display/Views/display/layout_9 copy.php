@@ -41,11 +41,13 @@
         flex: 1; display: flex; align-items: center;
         overflow: hidden; background: #b71c1c; position: relative;
     }
+    
+    /* Animasi Marquee Halus */
     .marquee-content {
         display: inline-block; white-space: nowrap;
         animation: marquee-scroll 80s linear infinite;
         padding-left: 100%;
-        line-height: 8vh;
+        line-height: 8vh; /* Vertikal Center Teks */
     }
     .news-item {
         display: inline-block; font-size: 1.6rem; font-weight: 500;
@@ -75,16 +77,16 @@
         flex: 1; position: relative; overflow: hidden; background: transparent;
     }
     
-    /* Header Colors */
+    /* Header Colors (Original Style) */
     .bg-header-sidang { background-color: #C62828 !important; }
     .bg-header-video { background-color: #212121 !important; }
     .bg-header-sosmed { background-color: #2E7D32 !important; }
     .bg-header-info { background-color: #0d47a1 !important; }
     .bg-header-kinerja { background-color: #FF6F00 !important; }
 
-    /* --- RASIO TINGGI CARD --- */
-    .box-video { flex: 88; } 
-    .box-sosmed { flex: 12; } 
+    /* Rasio Tinggi Card */
+    .box-video { flex: 78; } 
+    .box-sosmed { flex: 22; } 
     .box-info { flex: 40; } 
     .box-kinerja { flex: 60; }
 
@@ -93,14 +95,13 @@
         height: 100%; width: 100%;
         background: linear-gradient(90deg, #1b5e20 0%, #000000 100%);
         display: flex; align-items: center; justify-content: space-between;
-        padding: 0 15px;
+        padding: 0 20px;
     }
-    .sosmed-icons { display: flex; gap: 10px; }
-    
+    .sosmed-icons { display: flex; gap: 15px; }
     .icon-box {
-        width: 32px; height: 32px; border-radius: 50%;
+        width: 38px; height: 38px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        font-size: 1rem; color: white;
+        font-size: 1.2rem; color: white;
         border: 2px solid white;
         transition: transform 0.2s;
     }
@@ -110,30 +111,43 @@
     .icon-box.yt { background: #FF0000; border-color: #FF0000; }
 
     .sosmed-center { text-align: center; color: white; flex-grow: 1; }
-    .title-follow { font-size: 0.65rem; letter-spacing: 2px; color: #eee; text-transform: uppercase; margin-bottom: 0; }
-    .title-instansi { font-size: 1.1rem; font-weight: 900; color: #FFC107; text-transform: uppercase; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
+    .title-follow { font-size: 0.8rem; letter-spacing: 3px; color: #eee; text-transform: uppercase; margin-bottom: 2px; }
+    .title-instansi { font-size: 1.4rem; font-weight: 900; color: #FFC107; text-transform: uppercase; line-height: 1; text-shadow: 2px 2px 4px rgba(0,0,0,0.5); }
 
     .link-badge {
         border: 1px solid #4caf50;
         border-radius: 50px;
-        padding: 3px 15px;
+        padding: 5px 20px;
         background: rgba(0,0,0,0.3);
     }
-    .link-text { font-family: 'Courier New', monospace; font-weight: bold; color: #fff; font-size: 0.9rem; }
+    .link-text { font-family: 'Courier New', monospace; font-weight: bold; color: #fff; font-size: 1rem; }
 
-    /* --- VIDEO FULL FIX --- */
+    /* --- VIDEO FULL FIX (MERGED) --- */
+    /* Wrapper dibuat relative agar child absolute bisa nempel */
     .video-wrapper { 
-        width: 100%; height: 100%; background: #000; 
-        position: relative; overflow: hidden;
+        width: 100%; 
+        height: 100%; 
+        background: #000; 
+        position: relative; /* KUNCI UTAMA */
+        overflow: hidden;
     }
-    /* Target semua elemen video/player */
+    
+    /* Paksa semua elemen video/iframe/plyr 100% dan Absolute */
     .video-wrapper video, 
     .video-wrapper iframe, 
     .video-wrapper .plyr,
     .video-wrapper .plyr__video-wrapper { 
-        width: 100% !important; height: 100% !important; 
+        width: 100% !important; 
+        height: 100% !important; 
         background: transparent !important;
-        position: absolute !important; top: 0; left: 0;
+        position: absolute !important; 
+        top: 0; left: 0;
+    }
+    
+    /* Agar rasio video terjaga tapi mentok pinggir (tidak gepeng) */
+    .video-wrapper video,
+    .video-wrapper iframe,
+    .plyr video {
         object-fit: contain !important;
     }
 
@@ -143,6 +157,7 @@
     @keyframes scrollUp { 0% { transform: translateY(0); } 100% { transform: translateY(-50%); } }
     
     .full-img { width: 100%; height: 100%; object-fit: fill; }
+    
 </style>
 <?= $this->endSection() ?>
 
@@ -155,8 +170,8 @@
                  src="<?= base_url('/' . ($logo == "" ? 'images/logo_kejaksaan.png' : $logo)); ?>" 
                  width="80" height="80" />
             <div class="text-white">
-                <h1 class="fw-bold mb-0 text-uppercase" style="line-height: 1.1; font-size: 2.5rem;"><?= $nama_instansi; ?></h1>
-                <h5 class="fw-light mb-0 text-white-50" style="font-size: 1.1rem;"><?= $alamat; ?></h5>
+                <h1 class="fw-bold mb-0 text-uppercase" style="line-height: 1.1;"><?= $nama_instansi; ?></h1>
+                <h5 class="fw-light mb-0 text-white-50"><?= $alamat; ?></h5>
             </div>
         </div>
     </div>
@@ -166,7 +181,7 @@
         <div class="col-kiri">
             <div class="card-custom" style="height: 100%;">
                 <div class="card-custom-header bg-header-sidang">
-                    <i class="mdi mdi-gavel me-2"></i> SIDANG HARI INI
+                    <i class="mdi mdi-gavel me-2"></i> Sidang Hari Ini
                 </div>
                 <div class="card-custom-body body-dark">
                     <div v-if="loadingSidang" class="d-flex justify-content-center align-items-center h-100 text-white">
@@ -179,21 +194,20 @@
                     <div v-if="!loadingSidang && dataSidang.length > 0" style="height: 100%; overflow: hidden;">
                         <ul class="scroll-list-anim">
                             <li v-for="(row, index) in [...dataSidang, ...dataSidang]" :key="index" class="list-item text-white">
-                                <div class="text-warning fw-bold text-uppercase" style="font-size:1rem; margin-bottom:2px; letter-spacing:0.5px;">
+                                <div class="text-warning fw-bold" style="font-size:1.1rem; line-height:1.2; margin-bottom:2px;">
                                     {{ row.agenda_sidang }}
                                 </div>
-                                <div class="fw-bold text-white text-uppercase" style="font-size:1.15rem; line-height:1.2; margin-bottom:4px; text-shadow: 1px 1px 2px black;">
+                                <div class="fw-bold text-white" style="font-size:1rem; margin-bottom:2px;">
                                     {{ row.nama_terdakwa }}
                                 </div>
-                                <div class="text-white-50 small mb-2" style="font-size:0.8rem;">
+                                <div class="text-white-50 small" style="font-size:0.85rem;">
                                     {{ row.nomor_perkara }} | {{ row.jenis_perkara }}
                                 </div>
-                                <div class="small text-white-50" style="font-size:0.85rem; border-top:1px dashed rgba(255,255,255,0.2); padding-top:4px;">
-                                    JPU: <span class="text-white">{{ row.jpu }}</span> 
-                                    
-                                    <span v-if="row.status_sidang && row.status_sidang !== '-'" class="ms-1">
+                                <div class="small text-white-50 mt-1" style="font-size:0.8rem;">
+                                    JPU: {{ row.jpu }} <span v-if="row.status_sidang">| STATUS: <span class="text-white">{{ row.status_sidang }}</span>
+                                    <span v-if="row.status_sidang" class="ms-1">
                                         | STATUS: <span class="text-warning fw-bold">{{ row.status_sidang }}</span>
-                                    </span>
+                                </span>
                                 </div>
                             </li>
                         </ul>
@@ -201,31 +215,36 @@
                 </div>
             </div>
         </div>
-
-        <div class="col-tengah">
+    <div class="col-tengah">
+            
             <div class="card-custom box-video">
                 <div class="card-custom-header bg-header-video">
                     <i class="mdi mdi-video me-2"></i> LIVE TV
                 </div>
-                <div class="card-custom-body bg-black">
-                    <div class="video-wrapper">
-                        <?php if ($video_youtube == 'no') { ?>
-                            <video id="myplayer" controls muted autoplay loop></video>
-                        <?php } else { 
-                            $origin = rtrim(base_url(), '/'); 
-                        ?>
-                            <vue-plyr>
-                                <div class="plyr__video-embed">
+                
+                <div class="card-custom-body bg-black d-flex align-items-center justify-content-center" style="position: relative; width: 100%; height: 100%;">
+                    
+                    <?php if ($video_youtube == 'no') { ?>
+                        <video id="myplayer" style="width:100%; height:100%; object-fit: contain;" controls muted autoplay loop></video>
+                    
+                    <?php } else { 
+                        $origin = rtrim(base_url(), '/'); 
+                    ?>
+                        <div style="width:100%; height:100%; position:absolute; top:0; left:0;">
+                            <vue-plyr style="width:100%; height:100%;">
+                                <div class="plyr__video-embed" style="width:100%; height:100%;">
                                     <iframe 
                                         src="https://www.youtube.com/embed/<?= $videoId; ?>?origin=<?= $origin; ?>&autoplay=1&loop=1&playlist=<?= $videoId; ?>&iv_load_policy=3&modestbranding=1&playsinline=1&showinfo=0&rel=0&enablejsapi=1" 
                                         allowfullscreen 
                                         allowtransparency 
-                                        allow="autoplay">
+                                        allow="autoplay"
+                                        style="width:100%; height:100%; border:none;">
                                     </iframe>
                                 </div>
                             </vue-plyr>
-                        <?php } ?>
-                    </div>
+                        </div>
+                    <?php } ?>
+
                 </div>
             </div>
 
@@ -244,6 +263,7 @@
                         </div>
                         <div class="sosmed-right">
                             <div class="link-badge">
+                                <i class="mdi mdi-earth text-green"></i>
                                 <span class="link-text">kejari-boyolali.go.id</span>
                             </div>
                         </div>
@@ -255,7 +275,7 @@
         <div class="col-kanan">
             <div class="card-custom box-info">
                 <div class="card-custom-header bg-header-info">
-                    <i class="mdi mdi-information me-2"></i> PENGUMUMAN
+                    <i class="mdi mdi-information me-2"></i> Pengumuman
                 </div>
                 <div class="card-custom-body body-info-bg">
                     <div style="height: 100%; overflow: hidden;">
@@ -272,7 +292,7 @@
 
             <div class="card-custom box-kinerja">
                 <div class="card-custom-header bg-header-kinerja">
-                    <i class="mdi mdi-chart-bar me-2"></i> GALERI KEGIATAN
+                    <i class="mdi mdi-chart-bar me-2"></i> Galeri Kegiatan
                 </div>
                 <div class="card-custom-body p-0">
                     <div id="carouselKinerja" class="carousel slide h-100" data-bs-ride="carousel" data-bs-interval="4000">
@@ -302,15 +322,13 @@
             <div class="marquee-content">
                 <span v-if="dataNews.length > 0">
                     <span v-for="(item, i) in dataNews" :key="i" class="news-item">
-                        <i class="mdi mdi-star text-warning mx-2"></i> {{ item.text_news }}
+                        {{ item.text_news }} &bull;
                     </span>
                     <span v-for="(item, i) in dataNews" :key="'d-'+i" class="news-item">
-                        <i class="mdi mdi-star text-warning mx-2"></i> {{ item.text_news }}
+                        {{ item.text_news }} &bull;
                     </span>
                 </span>
-                <span v-else class="news-item">
-                    <i class="mdi mdi-star text-warning mx-2"></i> Selamat Datang di Sistem Informasi Digital Kejaksaan Negeri. Melayani dengan Sepenuh Hati.
-                </span>
+                <span v-else class="news-item">Selamat Datang di Sistem Informasi Digital Kejaksaan Negeri. Melayani dengan Sepenuh Hati. &bull;</span>
             </div>
         </div>
     </div>
@@ -384,17 +402,7 @@
             axios.get('<?= base_url(); ?>/datasidang').then(res => {
                 this.loadingSidang = false;
                 if (res.data.status) { 
-                    // MAP DATA UNTUK EKSTRAK STATUS DARI JSON data_full
-                    this.dataSidang = res.data.rows.map(row => {
-                        // Jika status_sidang tidak ada di root, cek di data_full
-                        if (!row.status_sidang && row.data_full) {
-                            try {
-                                const df = typeof row.data_full === 'string' ? JSON.parse(row.data_full) : row.data_full;
-                                if (df.status_sidang) row.status_sidang = df.status_sidang;
-                            } catch (e) {}
-                        }
-                        return row;
-                    });
+                    this.dataSidang = res.data.rows; 
                 }
             }).catch(e => { this.loadingSidang = false; });
         },

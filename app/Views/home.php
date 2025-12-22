@@ -143,7 +143,7 @@ $sidangNama       = session()->get('nama_pegawai') ?? 'Pegawai';
                 loginAdmin: '<?= base_url('auth/login_admin'); ?>',
                 logout: '<?= base_url('api/auth/logout'); ?>',
                 dashboard: '<?= base_url('dashboard'); ?>',
-                afterLogout: '<?= base_url('auth/loading'); ?>'
+                afterLogout: '<?= base_url(); ?>'
             }
         };
     </script>

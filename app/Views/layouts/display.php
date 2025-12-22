@@ -1,139 +1,104 @@
 <!DOCTYPE html>
-<html>
-
+<html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta http-equiv="X-UA-Compatible" content="ie=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $title; ?></title>
-    <meta name="description" content="<?= $title; ?>">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    
+    <title><?= esc($title ?? 'Display Informasi'); ?></title>
     <link rel="shortcut icon" href="<?= base_url('images/favicon.png'); ?>" type="image/x-icon">
-    <link href="<?= base_url('assets/css/materialdesignicons.min.css') ?>" type="text/css" rel="stylesheet" />
-    <link href="<?= base_url('assets/css/bootstrap.min.css') ?>" type="text/css" rel="stylesheet" />
-    <link href="<?= base_url('assets/css/styles.css') ?>" rel="stylesheet" />
+    
+    <link href="<?= base_url('assets/css/materialdesignicons.min.css') ?>" rel="stylesheet" />
+    <link href="<?= base_url('assets/css/bootstrap.min.css') ?>" rel="stylesheet" />
     <link href="<?= base_url('assets/css/vue-plyr.css') ?>" rel="stylesheet">
+    <link href="<?= base_url('assets/css/styles.css') ?>" rel="stylesheet" />
+    
     <?= $this->renderSection('style') ?>
+    
+    <style>
+        body {
+            background-color: #000;
+            /* Background diambil dari Controller -> Layout Child -> Master */
+            background-image: url('<?= base_url() . '/' . esc($background ?? 'images/bg-default.jpg') ?>');
+            background-repeat: no-repeat;
+            background-position: center center;
+            background-attachment: fixed;
+            background-size: cover;
+            overflow: hidden; 
+        }
+        [v-cloak] { display: none !important; }
+    </style>
 </head>
-<?= $this->include('art/preloader') ?>
-<body style="background: url('<?= base_url() . '/' . $background ?>') no-repeat center center fixed;-webkit-background-size: cover;-moz-background-size: cover;-o-background-size: cover;background-size: cover;">
-    <div id="app">
 
-        <main>
+<body>
+    <?= $this->include('art/preloader') ?>
+
+    <div id="app" v-cloak>
+        <main class="container-fluid p-0 h-100">
             <?= $this->renderSection('content') ?>
         </main>
-
+        
+        <div class="position-fixed bottom-0 end-0 p-3" style="z-index: 9999">
+            <div v-if="snackbar" :class="['toast show align-items-center text-white border-0', 'bg-' + snackbarType]" role="alert">
+                <div class="d-flex">
+                    <div class="toast-body">{{ snackbarMessage }}</div>
+                </div>
+            </div>
+        </div>
     </div>
 
-    <?= $this->renderSection('modal') ?>
-
-    <script src="<?= base_url('assets/js/vue.min.js') ?>" type="text/javascript"></script>
-    <script src="<?= base_url('assets/js/bootstrap.bundle.min.js') ?>" type="text/javascript"></script>
-    <script src="<?= base_url('assets/js/axios.min.js') ?>" type="text/javascript"></script>
-    <script src="<?= base_url('assets/js/main.js') ?>" type="text/javascript"></script>
-    <script src="<?= base_url('assets/js/vue-plyr.min.js') ?>" type="text/javascript"></script>
+    <script src="<?= base_url('assets/js/vue.min.js') ?>"></script>
+    <script src="<?= base_url('assets/js/axios.min.js') ?>"></script>
+    <script src="<?= base_url('assets/js/bootstrap.bundle.min.js') ?>"></script>
+    <script src="<?= base_url('assets/js/vue-plyr.min.js') ?>"></script>
 
     <script>
-        var computedVue = {
+        // Init Axios
+        axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
+        
+        // Register Component
+        if(typeof VuePlyr !== 'undefined') Vue.component('vue-plyr', VuePlyr);
 
-        }
-        var createdVue = function() {
-            axios.defaults.headers.common['X-Requested-With'] = 'XMLHttpRequest';
-        }
-        var mountedVue = function() {
-
-        }
-        var watchVue = {}
-        var dataVue = {
-            sidebarMenu: true,
-            rightMenu: false,
-            toggleMini: false,
-            dark: false,
+        // Data & Methods Default (Placeholder)
+        window.dataVue = {
             loading: false,
-            valid: true,
-            notifMessage: '',
-            notifType: '',
             snackbar: false,
-            timeout: 4000,
+            snackbarType: 'info',
             snackbarMessage: '',
-            show: false,
-            modalAuth: false,
-            loginEmail: "",
-            loginPassword: "",
-            rules: {
-                email: v => !!(v || '').match(/@/) || '<?= lang('App.emailValid'); ?>',
-                length: len => v => (v || '').length <= len || `<?= lang('App.invalidLength'); ?> ${len}`,
-                password: v => !!(v || '').match(/^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*(_|[^\w])).+$/) ||
-                    '<?= lang('App.strongPassword'); ?>',
-                min: v => v.length >= 8 || '<?= lang('App.minChar'); ?>',
-                required: v => !!v || '<?= lang('App.isRequired'); ?>',
-                number: v => Number.isInteger(Number(v)) || "<?= lang('App.isNumber'); ?>",
-                zero: v => v > 0 || "<?= lang('App.isZero'); ?>"
-            },
-            tab: 0,
-            tabs: [{
-                name: "Login",
-                icon: "mdi-account"
-            }, ],
-        }
-        var methodsVue = {
-            modalAuthOpen: function() {
-                this.modalAuth = true;
-            },
-            modalAuthClose: function() {
-                this.modalAuth = false;
-                this.loginEmail = "";
-                this.loginPassword = "";
-                this.$refs.formLogin.resetValidation();
-            },
-            submitLogin() {
-                this.loading = true;
-                axios.post('<?= base_url(); ?>/auth/login', {
-                        email: this.loginEmail,
-                        password: this.loginPassword,
-                    })
-                    .then(res => {
-                        // handle success
-                        this.loading = false
-                        var data = res.data;
-                        if (data.status == true) {
-                            localStorage.setItem('access_token', JSON.stringify(data.access_token));
-                            this.snackbar = true;
-                            this.snackbarType = "success";
-                            this.snackbarMessage = data.message;
-                            this.modalAuth = false;
-                            this.$refs.formLogin.resetValidation();
-                            setTimeout(() => window.location.reload(), 1000);
-                        } else {
-                            this.notifType = "error";
-                            this.notifMessage = data.message;
-                            this.snackbar = true;
-                            this.snackbarType = "warning";
-                            this.snackbarMessage = data.message.email || data.message.password;
-                            this.$refs.formLogin.validate();
-                        }
-                    })
-                    .catch(err => {
-                        // handle error
-                        console.log(err);
-                        this.loading = false
-                    })
-            },
-        }
-        Vue.component('vue-plyr', VuePlyr);
+            // Placeholder agar tidak error jika layout child belum ready
+            dataNews: [], dataInfo: [], dataAgenda: [], dataVideo: [],
+            dataJadwalsholat: {}, dataCuaca: {},
+            tanggal: '', jam: ''
+        };
+
+        window.methodsVue = {
+            // Helper umum
+        };
+        
+        window.createdVue = function() {};
+        window.mountedVue = function() {};
     </script>
 
-    <?= $this->renderSection('js') ?>
+    <?= $this->renderSection('js') ?> 
+
     <script>
+        // Hapus Preloader manual
+        window.onload = function() {
+            const pre = document.getElementById('global-preloader');
+            if(pre) { pre.style.opacity=0; setTimeout(()=>pre.remove(), 600); }
+        };
+
+        // Jalankan Vue setelah semua script child dimuat
         new Vue({
             el: '#app',
-            computed: computedVue,
-            data: dataVue,
-            mounted: mountedVue,
-            created: createdVue,
-            watch: watchVue,
-            methods: methodsVue,
-        })
+            data: window.dataVue,
+            methods: window.methodsVue,
+            created: window.createdVue,
+            mounted: window.mountedVue
+        });
     </script>
 </body>
-
 </html>
