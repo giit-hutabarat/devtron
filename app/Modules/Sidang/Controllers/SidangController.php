@@ -36,8 +36,11 @@ class SidangController extends BaseController
      */
     private function cleanNamaTerdakwa(string $rawName): string
     {
+        // 1. Hapus tag HTML berbahaya (Security)
+        $rawName = strip_tags($rawName); 
+        
+        // 2. Logic Bisnis Anda (Als, Bin, dkk)
         $keywords = [' als ', ' alias ', ' bin ', ' dkk '];
-        $cleanName = $rawName;
         $lowerName = strtolower($rawName);
         $foundPos = false;
 
@@ -52,23 +55,29 @@ class SidangController extends BaseController
         
         if ($foundPos !== false) {
             $cleanName = substr($rawName, 0, $foundPos);
+        } else {
+            $cleanName = $rawName;
         }
         
-        return trim($cleanName);
+        // Hapus karakter aneh non-printable
+        return trim(preg_replace('/[\x00-\x1F\x7F]/', '', $cleanName));
     }
     
-    /**
-     * HELPER: KONEKSI KE GOOGLE SHEET
-     */
     private function fetchSheet($range)
     {
         $client = new Client();
-        $client->setAuthConfig(WRITEPATH . '/json-by2025.json');
+        // Gunakan env() untuk memanggil rahasia
+        $jsonFile = env('GOOGLE_AUTH_JSON', 'json-by2025.json'); 
+        $client->setAuthConfig(WRITEPATH . '/' . $jsonFile);
+        
         $client->addScope(Sheets::SPREADSHEETS_READONLY);
         $service = new Sheets($client);
         
-        // ⚠️ GANTI ID SHEET LO DISINI
-        $spreadsheetId = '1Jlsbx5HxKzQDmfNFIBkw1TTmDBKXpIxKAtb_zhaLLfo'; 
+        $spreadsheetId = env('GOOGLE_SHEET_ID'); // Ambil dari env
+        
+        if (empty($spreadsheetId)) {
+            throw new \Exception("Google Spreadsheet ID belum disetting di .env");
+        }
         
         $response = $service->spreadsheets_values->get($spreadsheetId, $range);
         return $response->getValues();
@@ -177,7 +186,7 @@ class SidangController extends BaseController
             'nama_instansi' => 'INSTANSI ERROR',
             'path_logo_instansi' => 'images/logo_kejaksaan.png',
             'alamat'        => '-',
-            'nip _user'      => session()->get('sidang_nip'),
+            'nip_user'      => session()->get('sidang_nip'),
         ];
         
 
@@ -206,7 +215,17 @@ class SidangController extends BaseController
                 try {
                     // Pastikan format tanggal aman sebelum diformat
                     if (\DateTime::createFromFormat('Y-m-d', $rawDate) !== false) {
-                        $formattedDate = date('d-m-Y', strtotime($rawDate)); 
+
+                        // --- NEW LOGIC WORKING DAYS --//
+                        $timestamp = strtotime($rawDate);
+                        $hariKe = date('N', $timestamp);//
+                        
+                        // jika hari sabtu / minggu (6-7)
+                        if ($hariKe >= 6){
+                            continue;
+
+                        }
+                        $formattedDate = date('d-m-Y', $timestamp); 
                         if ($latestDate === null) {
                             $latestDate = $rawDate; 
                         }
@@ -220,20 +239,33 @@ class SidangController extends BaseController
         
         $cleanedData = []; 
 
+
+        // 1. Siapkan Default Value
+        $namaInstansiApp = $settingsData['nama_instansi'] ?? 'INSTANSI ERROR';
+        $pathLogoDb      = $settingsData['path_logo_instansi'] ?? 'images/default_logo.png';
+        
+        // 2. Logic Manipulasi Path Logo (Membersihkan Slash URL)
+        // Kita lakukan di sini agar View tinggal terima jadi
+        $baseUrlClean  = rtrim(base_url(), '/'); 
+        $pathLogoFinal = $baseUrlClean . '/' . ltrim($pathLogoDb, '/');
+
         // 2. Kirim Data ke View 
         $data = [
-            'title'         => 'Cetak Sidang - ' . $settingsData['nama_aplikasi'],
-            'nama_instansi_app' => $settingsData['nama_instansi'], 
-            'path_logo_instansi' => $settingsData['path_logo_instansi'],         
-            'alamat'        => $settingsData['alamat'], 
+            'title'         => 'Cetak Sidang - ' . ($settingsData['nama_aplikasi'] ?? 'APP'),
+            // Data Bersih untuk View
+            'nama_instansi_app'  => $namaInstansiApp, 
+            'path_logo'          => $pathLogoFinal, // View tidak perlu mikir path lagi
+            'alamat'             => $settingsData['alamat'] ?? '-', 
 
-            'opt_tanggal'   => $listTanggal, 
-            'all_data'      => $cleanedData, 
+            'opt_tanggal'        => $listTanggal, 
+            'all_data'           => [], // Default kosong
 
+            'nip_user'           => $nipUser,
+            'nama_pegawai'       => $namaPegawai,
+            'selected_date'      => null,
 
-            'nip_user'      => $nipUser,
-            'nama_pegawai'  => $namaPegawai,
-            'selected_date' => null 
+            // Kirim base_url explicit untuk JavaScript
+            'base_url_app'       => base_url()
         ];
 
         return view('\App\Modules\Sidang\Views\sidang_view', $data);
@@ -420,168 +452,273 @@ class SidangController extends BaseController
 
         return redirect()->to('sidang')->with('success', "Sinkronisasi Selesai! Data Baru: $countInsert, Update: $countUpdate, Skip: $countSkip");
     }
-    /**
-     * FITUR PROSES CETAK - MEMERLUKAN FILTER 'sidang_auth'
-     */
+
     public function proses()
     {
-        // 1. Ambil Input User
+        // --- 1. SECURITY VALIDATION ---
+        if (!$this->validate([
+            'tanggal_terpilih' => 'required|valid_date[d-m-Y]',
+            'mode_cetak'       => 'required|in_list[seleksi,full_p38,p37_seleksi]',
+            // Pastikan pilih_data adalah array jika dikirim
+            'pilih_data'       => 'permit_empty', 
+        ])) {
+            return redirect()->back()->with('error', 'Data input tidak valid / manipulasi terdeteksi.');
+        }
+        // 1. AMBIL INPUT DASAR
         $selectedNoPerkara = $this->request->getPost('pilih_data');
         $docTypes = $this->request->getPost('jenis_dokumen');
         $mode = $this->request->getPost('mode_cetak');
         $tanggalTerpilih = $this->request->getPost('tanggal_terpilih');
 
-        // 2. AMBIL DATA KONFIGURASI DARI MODAL (View)
-        $customInstansi = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
-        $customKota     = $this->request->getPost('custom_kota') ?: 'Indonesia';
-        $ttdJabatan     = $this->request->getPost('ttd_jabatan'); 
-        $ttdNama        = $this->request->getPost('ttd_nama');
-        $ttdNip         = $this->request->getPost('ttd_nip');
+        // 2. DATA MODAL KONFIGURASI
+        $customInstansi   = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
+        $customKota       = $this->request->getPost('custom_kota') ?: 'Indonesia';
+        $customNomorSurat = $this->request->getPost('custom_nomor_surat') ?: 'B-......./.......'; 
+        $ttdJabatan       = $this->request->getPost('ttd_jabatan'); 
+        $ttdNama          = $this->request->getPost('ttd_nama');
+        $ttdNip           = $this->request->getPost('ttd_nip');
 
-        // Validasi Tanggal (Wajib ada untuk semua mode)
-        if (empty($tanggalTerpilih)) {
-            return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
-        }
+        if (empty($tanggalTerpilih)) return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
 
-        // 3. Setup Folder Backup
+        // 3. SETUP FOLDER
         $hariIni = date('Y-m-d');
         $pathArsip = WRITEPATH . 'arsip_sidang';
         $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
-
         if (!is_dir($pathArsip)) mkdir($pathArsip, 0777, true);
         if (!is_dir($folderBackup)) mkdir($folderBackup, 0777, true);
 
         $generatedFiles = [];
         $targetData = [];
-
-        // Konversi tanggal UI (d-m-Y) ke DB (Y-m-d)
         $dbFormatDate = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih)->format('Y-m-d');
+        
+        // Format Tanggal untuk Nama File
+        $fileDateStr = str_replace('/', '-', $tanggalTerpilih); 
 
-        // ==========================================================
-        // 🔥 LOGIC BARU: CONTROLLER IS THE BOSS
-        // ==========================================================
-
-        // Cek apakah P-38 dipilih?
+        // 4. LOGIC PENGAMBILAN DATA
         $isP38 = (is_array($docTypes) && in_array('p38', $docTypes));
         
-        // Jika tombol Hijau (full_p38) ATAU Checkbox P-38 dicentang
-        if ($mode == 'full_p38' || $isP38) {
-
-            // PAKSA AMBIL SEMUA DATA (Abaikan checklist manual)
+        if ($mode == 'full_p38') {
             $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
-            
-            // Jika masuk lewat tombol hijau, pastikan doctypes di-set minimal p38
-            if ($mode == 'full_p38') {
-                $docTypes = ['p38']; 
-            }
-            
+            if (!is_array($docTypes)) $docTypes = [];
+            if (!in_array('p38', $docTypes)) $docTypes[] = 'p38';
         } else {
-            // Mode Normal (Hanya P-37 atau lainnya) -> WAJIB CHECKLIST
             if(empty($selectedNoPerkara)) return redirect()->back()->with('error', 'Pilih minimal satu data Terdakwa!');
             if(empty($docTypes)) return redirect()->back()->with('error', 'Pilih jenis dokumen!');
-            
             $targetData = $this->sidangModel->whereIn('nomor_perkara', $selectedNoPerkara)->findAll();
-
         }
 
-        if (empty($targetData)) {
-            return redirect()->back()->with('error', 'Data tidak ditemukan di database. Coba Sync dulu!');
+        if (empty($targetData)) return redirect()->back()->with('error', 'Data tidak ditemukan di database.');
+
+        // ==========================================================
+        // PROSES 1: GENERATE P-37 (Satu per satu)
+        // ==========================================================
+        if (is_array($docTypes) && in_array('p37', $docTypes)) {
+            foreach ($targetData as $row) {
+                $details = json_decode($row['data_full'], true);
+                
+                $finalTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
+                $finalTtdNip  = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
+                $finalTtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM';
+                
+                $hariSidangIndo = $this->formatTanggalIndo($row['tanggal_sidang']);
+                $tglSuratIndo   = $this->formatTglSaja(date('Y-m-d'));
+                $instansiValue  = strtoupper($customInstansi);
+
+                $dataRow = [
+                    'nama_instansi'   => $instansiValue,
+                    'kota_surat'      => $customKota,
+                    'tanggal_surat'   => $tglSuratIndo,
+                    'nomor_perkara'   => $row['nomor_perkara'],
+                    'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
+                    'jpu'             => $row['jpu'],
+                    'hari_sidang'     => $hariSidangIndo,
+                    'jenis_perkara'   => $details['jenis_perkara'] ?? 'Pidana Umum',
+                    'agenda'          => $details['agenda_raw'] ?? '-', 
+                    'tempat_lahir'    => $details['tempat_lahir'] ?? '-',
+                    'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
+                    'umur'            => $details['umur'] ?? '-',
+                    'jenis_kelamin'   => $details['jenis_kelamin'] ?? '-',
+                    'kewarganegaraan' => $details['kewarganegaraan'] ?? 'Indonesia',
+                    'alamat'          => $details['alamat'] ?? '-',
+                    'agama'           => $details['agama'] ?? '-',
+                    'pekerjaan'       => $details['pekerjaan'] ?? '-',
+                    'pendidikan'      => $details['pendidikan'] ?? '-',
+                    'nama_ortu'       => $details['nama_ortu'] ?? '-',
+                    'ttd_nama'        => $finalTtdNama,
+                    'ttd_nip'         => $finalTtdNip,
+                    'ttd_jabatan'     => $finalTtdJabatan,
+                    'TTD_NAMA'        => $finalTtdNama,
+                    'TTD_NIP'         => $finalTtdNip,
+                    'TTD_JABATAN'     => $finalTtdJabatan,
+                    'NAMA_INSTANSI'   => $instansiValue,
+                ];
+
+                $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $this->cleanNamaTerdakwa($row['nama_terdakwa']));
+                $cleanName = substr($cleanName, 0, 50);
+                $fileNameP37 = "P37-{$cleanName}-{$fileDateStr}.docx";
+                
+                $this->generateDoc('template_p37.docx', $dataRow, $fileNameP37, $folderBackup, $generatedFiles);
+            }
         }
 
-        // 4. Generate Word
-        foreach ($targetData as $row) {
-            // Decode JSON biodata
-            $details = json_decode($row['data_full'], true);
-
-            // LOGIKA PENENTUAN PEJABAT TTD (Fitur Modal Tadi)
-            // 1. Jika User input di Modal -> Pakai input Modal
-            // 2. Jika Kosong -> Pakai Default (JPU perkara tersebut)
-            $finalTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
-            $finalTtdNip  = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
-            $finalTtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM'; // Default jabatan
-
-            // FORMAT TANGGAL
-            // JSON: "tanggal_sidang": "2025-12-18" -> Jadi: "Kamis, 18 Desember 2025"
-            $hariSidangIndo = $this->formatTanggalIndo($row['tanggal_sidang']);
+        // ==========================================================
+        // PROSES 2: GENERATE P-38 (Satu file Tabel)
+        // ==========================================================
+        if (is_array($docTypes) && in_array('p38', $docTypes)) {
             
-            // Tanggal Surat (Hari Ini)
-            $tglSuratIndo = $this->formatTglSaja(date('Y-m-d'));
+            $tableRows = [];
+            $no = 1;
 
-            $dataRow = [
+            $firstRow = $targetData[0];
+            $p38Instansi   = strtoupper($customInstansi);
+            $p38Kota       = $customKota;
+            $p38TglSurat   = $this->formatTglSaja(date('Y-m-d'));
+            
 
-                // DATA INSTANSI & KOP (Dari Modal)
-                'nama_instansi'   => strtoupper($customInstansi),
-
-                // --- 2. DATA UTAMA (Dari Tabel DB Langsung) ---
-                'nomor_perkara'   => $row['nomor_perkara'],
-                'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
-                'jpu'             => $row['jpu'], // JPU Asli (untuk bagian "Menghadap Kepada")
-                'hari_sidang'     => $hariSidangIndo, // Hasil convert helper
-
-                // --- 3. DETAIL BIODATA (Dari JSON data_full) ---
-                // Menggunakan null coalescing (??) agar tidak error jika data kosong
-                'tempat_lahir'    => $details['tempat_lahir'] ?? '-',
-                'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
-                'umur'            => $details['umur'] ?? '-',
-                'jenis_kelamin'   => $details['jenis_kelamin'] ?? '-',
-                'kewarganegaraan' => $details['kewarganegaraan'] ?? 'Indonesia',
-                'alamat'          => $details['alamat'] ?? '-',
-                'agama'           => $details['agama'] ?? '-',
-                'pekerjaan'       => $details['pekerjaan'] ?? '-',
-                'pendidikan'      => $details['pendidikan'] ?? '-',
-                'nama_ortu'       => $details['nama_ortu'] ?? '-',
-                                
-                // --- 4. AGENDA ---
-                // Di template tertulis: "perkara tindak Pidana ${agenda}"
-                // JSON punya 'agenda_raw' ("Tuntutan") dan 'jenis_perkara' ("Lain-Lain")
-                // Pilih salah satu yang cocok untuk template.
-                'jenis_perkara'   => $details['jenis_perkara'] ?? 'Pidana Umum', // Default jika kosong
-                'agenda'          => $details['agenda_raw'] ?? '-',
-
-                // --- 5. TANDA TANGAN (Footer) ---
-                // PENTING: Template harus diubah variabelnya agar fitur Ganti Pejabat jalan
-                'kota_surat'      => $customKota,
-                'tanggal_surat'   => $tglSuratIndo, // Isinya cuma tanggal: "18 Desember 2025"
-
-                'ttd_nama'        => $finalTtdNama,     // Variabel baru untuk TTD
-                'ttd_nip'         => $finalTtdNip,      // Variabel baru untuk NIP TTD
-                'ttd_jabatan'     => $finalTtdJabatan,  // Variabel baru untuk Jabatan
-
-                // Backup jika template belum diubah (masih pakai ${nip_jpu})
-                'nip_jpu'         => $finalTtdNip,
+            // LOGIC PECAH HARI DAN TANGGAL
+            $timestampSidang = strtotime($firstRow['tanggal_sidang']);
+            // Array Helper Hari & Bulan
+            $hariArr = [
+                'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa',
+                'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+            ];
+            $bulanArr = [
+                1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
+                'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'
             ];
 
-            // Bersihkan nama file
-            $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $row['nama_terdakwa']);
-            $cleanName = substr($cleanName, 0, 50);
+            // Variabel Terpisah
+            $namaHariSaja   = $hariArr[date('l', $timestampSidang)]; // Contoh: "Senin"
+            $tanggalSaja    = date('d', $timestampSidang) . ' ' . $bulanArr[(int)date('m', $timestampSidang)] . ' ' . date('Y', $timestampSidang); // Contoh: "15 Desember 2025"
+            $formatLengkap  = "$namaHariSaja, $tanggalSaja"; // Contoh: "Senin, 15 Desember 2025"
 
-            if (is_array($docTypes) && in_array('p37', $docTypes)) {
-                $this->generateDoc('template_p37.docx', $dataRow, "P37_{$cleanName}.docx", $folderBackup, $generatedFiles);
+            // END LOGIC PISAH HARI DAN TANGGAL
+            
+            $p38TtdNama    = !empty($ttdNama) ? $ttdNama : $firstRow['jpu']; 
+            $p38TtdNip     = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
+            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM';
+            $namaTerdakwaPertama = $this->cleanNamaTerdakwa($firstRow['nama_terdakwa']);
+
+            foreach ($targetData as $row) {
+                $det = json_decode($row['data_full'], true);
+                
+                // --- PERBAIKAN 1: UNCOMMENT AGENDA ---
+                $tableRows[] = [
+                    'no'            => $no++,
+                    'nomor_perkara' => $row['nomor_perkara'],
+                    'nama_terdakwa' => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
+                    'jpu'           => $row['jpu'],
+                    'status_sidang' => $det['status_sidang'] ?? '-',
+                    'jenis_perkara' => $det['jenis_perkara'] ?? '-',
+                    'agenda'        => $det['agenda_raw'] ?? '-' // <--- INI SUDAH DIAKTIFKAN
+                ];
             }
-            if (is_array($docTypes) && in_array('p38', $docTypes)) {
-                $this->generateDoc('template_p38.docx', $dataRow, "P38_{$cleanName}.docx", $folderBackup, $generatedFiles);
+
+            $tplPath = WRITEPATH . 'templates/template_p38.docx';
+            if (file_exists($tplPath)) {
+                $proc = new TemplateProcessor($tplPath);
+
+                $proc->setValue('nomor_surat', $customNomorSurat);
+                $proc->setValue('NOMOR_SURAT', $customNomorSurat);
+                $proc->setValue('nama_instansi', $p38Instansi);
+                $proc->setValue('NAMA_INSTANSI', $p38Instansi);
+                $proc->setValue('kota_surat', $p38Kota);
+                $proc->setValue('tanggal_surat', $p38TglSurat);
+                
+                // --- PERBAIKAN FINAL DISINI ---
+                // 1. Jika di Word pakai ${hari_sidang}, isinya cuma "Senin"
+                $proc->setValue('hari_sidang', $namaHariSaja); 
+                
+                // 2. Jika di Word pakai ${tanggal_sidang}, isinya "15 Desember 2025"
+                $proc->setValue('tanggal_sidang', $tanggalSaja);
+                
+                // 3. Handle Teks Manual (HARI SIDANG) & (TANGGAL SIDANG)
+                $proc->setValue('(HARI SIDANG)', $namaHariSaja);
+                $proc->setValue('(TANGGAL SIDANG)', $tanggalSaja);
+
+                $proc->setValue('nama_terdakwa_1', $namaTerdakwaPertama); 
+
+                $proc->setValue('TTD_NAMA', $p38TtdNama);
+                $proc->setValue('TTD_NIP', $p38TtdNip);
+                $proc->setValue('TTD_JABATAN', $p38TtdJabatan);
+                $proc->setValue('ttd_nama', $p38TtdNama);
+                $proc->setValue('ttd_nip', $p38TtdNip);
+                $proc->setValue('ttd_jabatan', $p38TtdJabatan);
+
+                //cetak lembar kedua
+                $countRows = count($tableRows);
+                $proc->cloneRow('no', $countRows); // Clone baris kosong dulu sejumlah data
+
+                foreach ($tableRows as $index => $rowData) {
+                    $rowIndex = $index + 1; // PHPWord index mulai dari 1 (untuk replace)
+                    
+                    // Replace variabel per baris (format: variabel#1, variabel#2, dst)
+                    $proc->setValue('no#' . $rowIndex, $rowData['no']);
+                    $proc->setValue('nomor_perkara#' . $rowIndex, $rowData['nomor_perkara']);
+                    $proc->setValue('nama_terdakwa#' . $rowIndex, $rowData['nama_terdakwa']);
+                    $proc->setValue('jpu#' . $rowIndex, $rowData['jpu']);
+                    $proc->setValue('status_sidang#' . $rowIndex, $rowData['status_sidang']);
+                    $proc->setValue('jenis_perkara#' . $rowIndex, $rowData['jenis_perkara']);
+                    $proc->setValue('agenda#' . $rowIndex, $rowData['agenda']);
+                }
+
+                // =================================================
+                // 2. PROSES TABEL HALAMAN 2 (Lampiran)
+                //    Variabel BARU (Pake _2): ${no_2}, ${nomor_perkara_2}, dll
+                // =================================================
+                $proc->cloneRow('no_2', $countRows); // Clone berdasarkan variabel baru
+
+                foreach ($tableRows as $index => $rowData) {
+                    $rowIndex = $index + 1; 
+                    // Isi kolom tabel Halaman 2 (Perhatikan akhiran _2)
+                    $proc->setValue('no_2#' . $rowIndex, $rowData['no']);
+                    $proc->setValue('nomor_perkara_2#' . $rowIndex, $rowData['nomor_perkara']);
+                    $proc->setValue('nama_terdakwa_2#' . $rowIndex, $rowData['nama_terdakwa']);
+                    $proc->setValue('jpu_2#' . $rowIndex, $rowData['jpu']);
+                    $proc->setValue('status_sidang_2#' . $rowIndex, $rowData['status_sidang']);
+                    $proc->setValue('jenis_perkara_2#' . $rowIndex, $rowData['jenis_perkara']);
+                }
+
+                // Naming Convention P-38
+                $finalNameP38 = "";
+                if (count($targetData) === 1) {
+                    $cleanNameOne = preg_replace('/[^A-Za-z0-9 \-]/', '', $namaTerdakwaPertama);
+                    $cleanNameOne = substr($cleanNameOne, 0, 50);
+                    $finalNameP38 = "P38-{$cleanNameOne}-{$fileDateStr}.docx";
+                } else {
+                    $finalNameP38 = "P38-Sidang-{$fileDateStr}.docx";
+                }
+
+                $baseName = $finalNameP38;
+                $c = 1;
+                while(file_exists($folderBackup . DIRECTORY_SEPARATOR . $baseName)) {
+                    $baseName = pathinfo($finalNameP38, PATHINFO_FILENAME) . "_($c)." . pathinfo($finalNameP38, PATHINFO_EXTENSION);
+                    $c++;
+                }
+
+                $saveP = $folderBackup . DIRECTORY_SEPARATOR . $baseName;
+                $proc->saveAs($saveP);
+                $generatedFiles[$baseName] = $saveP;
             }
         }
 
-        // 5. Packing & Download
+        // 5. DOWNLOAD
         $totalFiles = count($generatedFiles);
         if ($totalFiles === 0) return redirect()->back()->with('error', 'Gagal generate file.');
 
         if ($totalFiles === 1) {
             $singleFile = reset($generatedFiles);
-            return $this->response->download($singleFile, null)->setFileName(basename($singleFile));
-        } 
-        else {
+            $downloadName = array_key_first($generatedFiles); 
+            return $this->response->download($singleFile, null)->setFileName($downloadName);
+        } else {
             $zip = new \ZipArchive();
-            $zipName = $folderBackup . DIRECTORY_SEPARATOR . 'Berkas_Sidang_' . time() . '.zip';
-
+            $zipName = $folderBackup . DIRECTORY_SEPARATOR . 'Berkas_Sidang_' . $fileDateStr . '.zip';
             if ($zip->open($zipName, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
                 foreach ($generatedFiles as $fname => $fpath) {
                     if (file_exists($fpath)) $zip->addFile($fpath, $fname);
                 }
                 $zip->close();
             }
-            
             return $this->response->download($zipName, null);
         }
     }

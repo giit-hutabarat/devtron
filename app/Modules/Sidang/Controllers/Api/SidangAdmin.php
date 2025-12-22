@@ -5,9 +5,7 @@ namespace App\Modules\Sidang\Controllers\Api;
 use App\Controllers\BaseControllerApi;
 use App\Modules\Sidang\Models\SidangAdminModel;
 use CodeIgniter\HTTP\ResponseInterface;
-
-// NOTE: Karena ini API, kita tidak perlu memanggil library QR Code di sini.
-// Logic QR Code generation tetap di Controller WEB (AdminSetupController).
+use Config\Services; // Import Services untuk Throttler
 
 class SidangAdmin extends BaseControllerApi
 {
@@ -22,9 +20,8 @@ class SidangAdmin extends BaseControllerApi
     public function index()
     {
         // Endpoint: GET /api/sidang/admins
-        // Mengambil semua data admin
         try {
-            $data = $this->model->findAll();
+            $data = $this->model->orderBy('updated_at', 'DESC')->findAll();
             return $this->respond([
                 "status" => true, 
                 "message" => "Daftar Admin Sidang berhasil dimuat.", 
@@ -35,23 +32,63 @@ class SidangAdmin extends BaseControllerApi
         }
     }
 
+    /**
+     * SAVE ADMIN (CREATE ONLY) - HIGH SECURITY
+     * Fitur: Anti-Spam, XSS Cleaning, Strict Validation
+     */
     public function save()
     {
+        // 1. SECURITY: Rate Limiting (Throttler)
+        // Batasi: Maksimal 5 request per 60 detik per IP Address
+        $throttler = Services::throttler();
+        $ipAddress = $this->request->getIPAddress();
+        
+        if ($throttler->check(md5($ipAddress . 'save_admin'), 5, 60) === false) {
+            return $this->respond([
+                'status' => false,
+                'message' => 'Terlalu banyak percobaan. Tunggu 1 menit lagi.',
+            ], 429); // HTTP 429 Too Many Requests
+        }
+
         // Endpoint: POST /api/admins/save
         $input = $this->getRequestInput();
-        log_message('debug', 'API saveNIP receive input ' . json_encode($input));
-
-        // Ambil data untuk disimpan
-        $data = [
-            'nip' => $input['nip'] ?? null,
-            'nama_pegawai' => $input['nama_pegawai'] ?? null,
-            'sidang_2fa_secret' => null, // Default secret kosong saat pertama kali daftar
-            'is_active' => 0
-        ];
         
-        // Validasi dan Simpan
-        if (!$this->validate(['nip' => 'required|is_unique[sidang_admins.nip]', 'nama_pegawai' => 'required'])) {
-            log_message('debug', 'API saveNIP validation failed: ' . json_encode($this->validator->getErrors()));
+        // 2. SECURITY: Sanitasi Input (Cegah XSS)
+        // Hapus tag HTML berbahaya dari Nama Pegawai
+        $namaRaw = $input['nama_pegawai'] ?? '';
+        $namaClean = strip_tags(trim($namaRaw));
+        
+        // Pastikan NIP hanya angka (menghapus spasi/huruf iseng)
+        $nipRaw = $input['nip'] ?? '';
+        $nipClean = preg_replace('/[^0-9]/', '', $nipRaw);
+
+        // 3. Validasi Ketat
+        // NIP harus numeric dan tepat 18 digit (Standar NIP)
+        $rules = [
+            'nip' => [
+                'label' => 'NIP',
+                'rules' => 'required|numeric|exact_length[18]',
+                'errors' => [
+                    'numeric' => 'NIP harus berupa angka.',
+                    'exact_length' => 'NIP harus berjumlah tepat 18 digit.'
+                ]
+            ],
+            'nama_pegawai' => [
+                'label' => 'Nama Pegawai',
+                'rules' => 'required|min_length[3]|max_length[100]|string',
+                'errors' => [
+                    'string' => 'Nama mengandung karakter tidak valid.'
+                ]
+            ]
+        ];
+
+        // Override input data untuk validasi dengan data yang sudah dibersihkan
+        $validationData = [
+            'nip' => $nipClean,
+            'nama_pegawai' => $namaClean
+        ];
+
+        if (!$this->validateData($validationData, $rules)) {
             return $this->respond([
                 'status' => false,
                 'message' => 'Validasi gagal: ' . implode(', ', $this->validator->getErrors()),
@@ -60,13 +97,37 @@ class SidangAdmin extends BaseControllerApi
         }
 
         try {
-            $this->model->save($data);
+            // 4. Cek Duplikasi (Strict Create Mode)
+            $existingUser = $this->model->where('nip', $nipClean)->first();
+
+            if ($existingUser) {
+                // SECURITY LOG: Mencatat percobaan duplikasi
+                log_message('warning', "Percobaan daftar NIP duplikat [$nipClean] dari IP: $ipAddress");
+                
+                return $this->respond([
+                    'status' => false,
+                    'message' => 'Gagal: NIP Pegawai sudah terdaftar.',
+                ], ResponseInterface::HTTP_BAD_REQUEST);
+            }
+
+            // --- INSERT DATA BARU ---
+            $this->model->insert([
+                'nip' => $nipClean,
+                'nama_pegawai' => strtoupper($namaClean), // Standarisasi Huruf Besar
+                'sidang_2fa_secret' => null, 
+                'is_active' => 0
+            ]);
+
+            // SECURITY LOG: Mencatat sukses
+            log_message('info', "Admin Sidang Baru [$nipClean] ditambahkan oleh IP: $ipAddress");
+
             return $this->respond([
                 'status' => true,
                 'message' => 'NIP Pegawai berhasil ditambahkan. Silakan Generate QR Code.',
             ], 200);
+
         } catch (\Throwable $e) {
-            return $this->failServerError('Gagal menyimpan NIP: ' . $e->getMessage());
+            return $this->failServerError('Gagal menyimpan data: ' . $e->getMessage());
         }
     }
     
@@ -84,14 +145,12 @@ class SidangAdmin extends BaseControllerApi
             'is_active' => $input['is_active'] ?? $admin['is_active']
         ];
         
-        // Cek jika toggle ke ON (aktif) tapi secret key kosong
         if ($data['is_active'] == 1 && empty($admin['sidang_2fa_secret'])) {
              return $this->respond([
                 'status' => false,
                 'message' => 'Gagal mengaktifkan. Secret Key belum dibuat. Silakan Generate QR Code terlebih dahulu.',
             ], ResponseInterface::HTTP_PRECONDITION_FAILED);
         }
-
 
         try {
             $this->model->update($id, $data);
@@ -105,25 +164,21 @@ class SidangAdmin extends BaseControllerApi
             return $this->failServerError('Gagal toggle status: ' . $e->getMessage());
         }
     }
-     public function delete($id = null)
+
+    public function delete($id = null)
     {
         // Endpoint: DELETE /api/sidang/admins/delete/(:segment)
-        
         if (!$this->model->find($id)) {
             return $this->failNotFound('Admin tidak ditemukan.');
         }
 
         try {
-            // Hapus data
             $this->model->delete($id);
-            
             return $this->respond([
                 'status' => true,
                 'message' => 'NIP Pegawai berhasil dihapus permanen.',
             ], ResponseInterface::HTTP_OK);
-            
         } catch (\Throwable $e) {
-            // Jika gagal karena constraint foreign key atau lainnya
             return $this->failServerError('Gagal menghapus NIP: ' . $e->getMessage());
         }
     }

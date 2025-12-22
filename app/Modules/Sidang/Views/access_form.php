@@ -1,64 +1,116 @@
-
 <!DOCTYPE html>
 <html lang="id">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    
     <title><?= $title ?? 'Akses Menu Sidang' ?></title>
-    <style>
-        body { font-family: Arial, sans-serif; background-color: #f4f4f4; display: flex; justify-content: center; align-items: center; height: 100vh; margin: 0; }
-        .login-container { background: #fff; padding: 30px; border-radius: 8px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); width: 350px; text-align: center; }
-        h2 { color: #333; margin-bottom: 20px; }
-        .form-group { margin-bottom: 15px; text-align: left; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; font-size: 0.9em; }
-        input[type="text"] { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 4px; box-sizing: border-box; font-size: 1em; }
-        button { background-color: #007bff; color: white; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer; width: 100%; font-size: 1em; margin-top: 10px; }
-        button:hover { background-color: #0056b3; }
-        .alert-error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; padding: 10px; border-radius: 4px; margin-bottom: 15px; font-size: 0.9em; }
-        .instansi { color: #666; font-size: 0.8em; margin-top: 15px; }
-        /* ✅ KOREKSI: Tambahkan max-width dan margin */
-    .logo-login { 
-        max-width: 100px; /* Batasi lebar maksimal */
-        height: auto; 
-        margin-bottom: 15px; /* Memberi ruang di bawah logo */
-    }
-    </style>
+    
+    <link rel="stylesheet" href="<?= base_url('assets/css/access-style.css') ?>">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <style id="antiClickjack">body{display:none !important;}</style>
+    <script>
+        if (self === top) {
+            var antiClickjack = document.getElementById("antiClickjack");
+            antiClickjack.parentNode.removeChild(antiClickjack);
+        } else {
+            top.location = self.location;
+        }
+    </script>
 </head>
 <body>
 
-<div class="login-container">
-    <?php if (!empty($logo_instansi)): ?>
-        <img src="<?= esc($logo_instansi) ?>" alt="Logo Instansi" class="logo-login">
-    <?php endif; ?> 
+    <noscript>
+        <div style="position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; display:flex; align-items:center; justify-content:center; text-align:center;">
+            <h3 style="color:red; font-family:sans-serif;">JavaScript Wajib Diaktifkan Untuk Mengakses Halaman Ini Demi Keamanan.</h3>
+        </div>
+    </noscript>
 
-    <!--<h2>Akses Cetak Berkas Sidang</h2>-->
-    <p class="instansi" style="font-size: 1em; color: #333; font-weight: bold;">
-        <?= esc($nama_instansi ?? 'Instansi Anda') ?>
-    </p><br />
+    <div class="login-container">
+        
+        <?php if (!empty($logo_instansi)): ?>
+            <img src="<?= esc($logo_instansi) ?>" 
+                 onerror="this.onerror=null;this.src='<?= base_url('images/default_logo.png') ?>';" 
+                 alt="Logo Instansi" 
+                 class="logo-login">
+        <?php endif; ?>
 
-    <?php if (session()->getFlashdata('error')): ?>
-        <div class="alert-error">
-                <?= session()->getFlashdata('error') ?>
+        <h1 class="instansi-name">
+            <?= esc($nama_instansi ?? 'Aplikasi Sidang') ?>
+        </h1>
+
+        <?php if (session()->getFlashdata('error')): ?>
+            <div class="alert-error">
+                <i class="fa-solid fa-circle-exclamation"></i>
+                <span><?= session()->getFlashdata('error') ?></span>
+            </div>
+        <?php endif; ?>
+        <?php if (session()->getFlashdata('success')): ?>
+            <div class="alert-error" style="background-color: #f0fdf4; color: #166534; border-color: #bbf7d0;">
+                <i class="fa-solid fa-check-circle"></i>
+                <span><?= session()->getFlashdata('success') ?></span>
             </div>
         <?php endif; ?>
 
-    <form action="<?= site_url('sidang/verify') ?>" method="post">
-        
-        <div class="form-group">
-            <label for="nip">NIP Pegawai</label>
-            <input type="text" id="nip" name="nip" required maxlength="18" placeholder="Masukkan NIP Anda">
-        </div>
+        <form action="<?= site_url('sidang/verify') ?>" method="post">
+            
+            <?= csrf_field() ?>
 
-        <div class="form-group">
-            <label for="otp_code">OTP 6 Digit</label>
-            <input type="text" id="otp_code" name="otp_code" required maxlength="6" pattern="\d{6}" placeholder="Kode dari Authenticator">
-        </div>
-        
-        <button type="submit">Akses</button>
-    </form>
+            <div class="form-group">
+                <label for="nip" class="form-label">NIP Pegawai</label>
+                <div class="input-wrapper">
+                    <input type="text" 
+                           id="nip" 
+                           name="nip" 
+                           class="form-input"
+                           required 
+                           maxlength="18"
+                           pattern="\d*" 
+                           inputmode="numeric" 
+                           placeholder="Masukkan 18 digit NIP"
+                           autocomplete="off"
+                           autofocus>
+                    <i class="fa-solid fa-id-badge toggle-password" style="cursor: default;"></i>
+                </div>
+            </div>
 
-    <p class="instansi" style="margin-top: 25px;">Untuk konfigurasi akses hubungi admin sistem.</p>
-</div>
+            <div class="form-group">
+                <label for="otp_code" class="form-label">Kode OTP Authenticator</label>
+                <div class="input-wrapper">
+                    <input type="password" 
+                           id="otp_code" 
+                           name="otp_code" 
+                           class="form-input"
+                           required 
+                           maxlength="6"
+                           pattern="\d*" 
+                           inputmode="numeric" 
+                           placeholder="6 Digit Kode"
+                           autocomplete="one-time-code">
+                    
+                    <span id="toggleOtp" class="toggle-password" title="Lihat Kode">
+                        <i class="fa-solid fa-eye" id="iconEye"></i>
+                    </span>
+                </div>
+            </div>
+            
+            <button type="submit" class="btn-submit">
+                <i class="fa-solid fa-unlock-keyhole"></i> Verifikasi Akses
+            </button>
+        </form>
+
+        <div class="footer-note">
+            <i class="fa-solid fa-shield-halved me-1"></i> Area Terbatas. <br>
+            Hubungi admin jika terkendala akses 2FA.
+        </div>
+    </div>
+
+    <script src="<?= base_url('assets/js/access-script.js') ?>"></script>
 
 </body>
 </html>

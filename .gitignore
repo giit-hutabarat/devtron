@@ -83,3 +83,6 @@ error.log
 /public/storage
 phpunit.xml
 /app/Config/Database.php
+
+/writable/json-by2025.json
+*.json
