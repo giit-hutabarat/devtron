@@ -7,7 +7,7 @@
         <img src="<?= base_url('images/logo_kejaksaan.png'); ?>" class="logo-main" alt="Loading...">
     </div>
     
-    <div class="loading-text">MEMPROSES DATA...</div>
+    <div class="loading-text">MEMPROSES SISTEM...</div>
     
     <div class="loading-bar-container">
         <div class="loading-bar-fill"></div>

@@ -143,9 +143,11 @@ class SidangController extends BaseController
             // 3. Verifikasi OTP
             if ($otp->verify($otp_code, null, $window)) {
                 session()->set([
-                    'isLoggedInSidang' => true, 
-                    'sidang_nip' => $adminUser['nip'],
-                    'userId' => $adminUser['id'] 
+                    'isLoggedInSidang' => true,           // Penanda Login Utama
+                    'sidang_nip'       => $adminUser['nip'], // (Legacy) Tetap simpan buat controller ini
+                    'nip_user'         => $adminUser['nip'], // (PENTING) Buat deteksi di Home.php
+                    'nama_pegawai'     => $adminUser['nama_pegawai'], // (PENTING) Buat sapaan di Home.php
+                    'userId'           => $adminUser['id']
                 ]);
                 //return $this->response->setJSON([
                     //'status' => true, 
@@ -743,15 +745,15 @@ class SidangController extends BaseController
             $filesArr[$finalName] = $saveP;
         }
     }
+    
     public function logout()
-        {
-            // Hapus sesi spesifik Modul Sidang
-            session()->remove(['isLoggedInSidang', 'sidang_nip', 'userId']);
-            
-            // Redirect user kembali ke halaman login 2FA
-            return redirect()->to(site_url('sidang/access'))->with('success', 'Anda berhasil keluar dari sesi sidang.');
-        }
-
+    {
+        // Hapus SEMUA sesi yang kita buat tadi
+        session()->remove(['isLoggedInSidang', 'sidang_nip', 'nip_user', 'nama_pegawai', 'userId']);
+        
+        // Redirect user kembali ke halaman login 2FA
+        return redirect()->to(site_url('sidang/access'))->with('success', 'Anda berhasil keluar dari sesi sidang.');
+    }
 
         // helper format tanggal dan hari di indonesia 
         

@@ -14,7 +14,7 @@
     <link href="<?= base_url('assets/css/vue-plyr.css') ?>" rel="stylesheet">
     <?= $this->renderSection('style') ?>
 </head>
-
+<?= $this->include('art/preloader') ?>
 <body style="background: url('<?= base_url() . '/' . $background ?>') no-repeat center center fixed;-webkit-background-size: cover;-moz-background-size: cover;-o-background-size: cover;background-size: cover;">
     <div id="app">
 

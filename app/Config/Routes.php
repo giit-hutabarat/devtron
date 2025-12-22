@@ -16,34 +16,35 @@ if (file_exists(SYSTEMPATH . 'Config/Routes.php')) {
  * Router Setup
  * --------------------------------------------------------------------
  */
-$routes->setDefaultNamespace('App\\Controllers');
+$routes->setDefaultNamespace('App\Controllers');
 $routes->setDefaultController('Home');
 $routes->setDefaultMethod('index');
-$routes->get('/datasidang', 'DataSheet::index');
 $routes->setTranslateURIDashes(false);
-$routes->set404Override();
-// The Auto Routing (Legacy) is very dangerous. It is easy to create vulnerable apps
-// where controller filters or CSRF protection are bypassed.
-// If you don't want to define all routes, please use the Auto Routing (Improved).
-// Set `$autoRoutesImproved` to true in `app/Config/Feature.php` and set the following to true.
+
+// HAPUS BARIS INI (REDUNDAN):
+// $routes->set404Override(); 
+
 $routes->setAutoRoute(false);
+
+/*
+ * --------------------------------------------------------------------
+ * Route Definitions
+ * --------------------------------------------------------------------
+ */
 
 // We get a performance increase by specifying the default
 // route since we don't have to scan directories.
 $routes->get('/', 'Home::index');
+$routes->get('/datasidang', 'DataSheet::index');
 
-// ⬇️⬇️ TAMBAHKAN INI BRO ⬇️⬇️
 // Arahkan /dashboard langsung ke Controller di dalam Module
 $routes->get('dashboard', '\App\Modules\Dashboard\Controllers\Dashboard::index', ['filter' => 'auth_session']);
 
 /**
  * --------------------------------------------------------------------
- * HMVC Routing - AUTO DISCOVERY (KODE INI SUDAH BENAR!)
+ * HMVC Routing - AUTO DISCOVERY
  * --------------------------------------------------------------------
- * Kode ini memastikan semua file Routes.php di setiap modul dimuat.
- * Ini yang memuat file app/Modules/Sidang/Config/Routes.php Anda!
  */
-
 foreach(glob(APPPATH . 'Modules/*', GLOB_ONLYDIR) as $item_dir)
 {
 	if (file_exists($item_dir . '/Config/Routes.php'))
@@ -62,3 +63,14 @@ $routes->get("/lang/{locale}", "Home::setLanguage");
 if (file_exists(APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php')) {
     require APPPATH . 'Config/' . ENVIRONMENT . '/Routes.php';
 }
+
+/*
+ * --------------------------------------------------------------------
+ * GLOBAL 404 OVERRIDE (THE GLITCH PAGE)
+ * --------------------------------------------------------------------
+ * Ini akan menangkap SEMUA error 404 dari controller manapun (termasuk Module)
+ */
+$routes->set404Override(function() {
+    // Pastikan path view sesuai dengan file yang baru kita buat
+    return view('errors/html/error_404_custom');
+});
