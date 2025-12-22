@@ -110,7 +110,7 @@
         </div>
     </div>
 
-    <script src="<?= base_url('assets/js/access-script.js') ?>"></script>
+    <script src="<?= base_url('assets/js/access-form.js') ?>"></script>
 
 </body>
 </html>
