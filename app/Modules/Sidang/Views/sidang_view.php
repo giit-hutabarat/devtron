@@ -56,7 +56,7 @@
                     </div>
 
                     <div class="w-100 w-md-auto text-center text-md-end">
-                        <a href="<?= base_url('/sidang/sync') ?>" id="btnSyncData" 
+                        <a href="javascript:void(0)" id="btnSyncData"
                            class="btn btn-light btn-sm fw-bold text-primary shadow-sm w-100 w-md-auto py-2">
                             <i class="fa-solid fa-cloud-arrow-down me-2"></i> SINKRONISASI
                         </a>
@@ -72,16 +72,12 @@
                 <div class="filter-box">
                     <div class="row g-3"> 
                         <div class="col-12 col-md-4">
-                            <label class="form-label"><i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang</label>
-                            <select id="dateFilter" class="form-select shadow-sm">
-                                <?php $hasDates = !empty($opt_tanggal); ?>
-                                <option value="" selected disabled>
-                                    <?= (!$hasDates) ? '-- TIDAK ADA DATA --' : '-- PILIH TANGGAL --' ?>
-                                </option>
-                                <?php if ($hasDates): foreach($opt_tanggal as $tgl): ?>
-                                    <option value="<?= esc($tgl) ?>"><?= esc($tgl) ?></option>
-                                <?php endforeach; endif; ?>
-                            </select>
+                        <label class="form-label text-white fw-bold"><i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang</label>
+                            <div class="input-group shadow-sm">
+                                <input type="date" id="dateFilter" class="form-control fw-bold text-center" 
+                                    value="<?= date('Y-m-d') ?>" 
+                                    style="font-size: 1.1rem; letter-spacing: 1px;">
+                            </div>
                         </div>
 
                         <div class="col-12 col-md-4">

@@ -1,42 +1,28 @@
 /**
- * SIDANG SCRIPT - SECURE VERSION (FULL COMPLETED)
- * - Fitur: Sinkronisasi, Date Picker, Cetak P37/P38, Validasi Modal
- * - Pastikan variabel 'baseUrlApp' sudah didefinisikan di file VIEW utama
+ * SIDANG SCRIPT - SECURE VERSION
+ * Pastikan variabel 'baseUrlApp' sudah didefinisikan di file VIEW utama (sidang_view.php)
  */
 
-// ============================================================
-// 1. HELPER FUNCTIONS (GLOBAL SCOPE)
-// ============================================================
-
-// A. Security: Escape HTML (Mencegah XSS)
+// --- HELPER SECURITY: Escape HTML untuk mencegah XSS ---
 function escapeHtml(text) {
     if (text === null || text === undefined) return '';
-    var map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+    var map = {
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#039;'
+    };
     return String(text).replace(/[&<>"']/g, function(m) { return map[m]; });
 }
 
-// B. Format Tanggal: YYYY-MM-DD (Input) -> DD-MM-YYYY (Server)
-function formatDateToIndo(ymd) {
-    if (!ymd) return '';
-    // Input: 2025-12-23 -> Split jadi ['2025', '12', '23']
-    var parts = ymd.split('-'); 
-    if (parts.length !== 3) return ymd; // Safety check
-    // Output: 23-12-2025
-    return parts[2] + '-' + parts[1] + '-' + parts[0]; 
-}
-
-// ============================================================
-// 2. CONFIG & STATE
-// ============================================================
+// --- CONFIG & STATE ---
 var table; 
+// var baseUrlApp diambil dari Global Variable di View (JANGAN didefinisikan ulang disini pakai PHP tag)
 var apiUrlPath = 'sidang/api/data'; 
 var isDataTableInitialized = false;
 
-// ============================================================
-// 3. CORE FUNCTIONS (LOGIC UTAMA)
-// ============================================================
-
-// UPDATE STATUS TOMBOL CETAK (Logika P37 vs P38)
+// 1. UPDATE STATUS TOMBOL (LOGIKA HYBRID)
 function updateBtnState() {
     var dateVal = $('#dateFilter').val();
     var isP37 = $('#chkP37').is(':checked');
@@ -59,7 +45,7 @@ function updateBtnState() {
         isDisabled = true;
     }
     else {
-        // SKENARIO P-38 (Surat Panggilan Saksi/Terdakwa)
+        // SKENARIO P-38
         if (isP38) {
             isDisabled = false; 
             if (totalChecked > 0) {
@@ -69,7 +55,7 @@ function updateBtnState() {
                 btnClass = 'btn-success-custom'; 
             }
         } 
-        // SKENARIO P-37 (Surat Panggilan Terdakwa - WAJIB PILIH)
+        // SKENARIO P-37
         else if (isP37) {
             if (totalChecked > 0) {
                 isDisabled = false;
@@ -83,16 +69,16 @@ function updateBtnState() {
 
     btn.prop('disabled', isDisabled);
     btn.html('<i class="fa-solid fa-file-word me-2"></i> ' + text);
-    // Reset class dulu baru tambah yang sesuai
     btn.removeClass('btn-cetak btn-success-custom').addClass(btnClass);
 }
 
-// FUNGSI LOAD DATA (AJAX)
-function loadData(selectedDateYMD) {
-    // FIX: Gunakan helper formatDateToIndo yang sudah didefinisikan di atas
-    var dbFormatDate = formatDateToIndo(selectedDateYMD);
+// --- FUNGSI LOAD DATA (SECURE) ---
+function loadData(selectedDate) {
+    var dbFormatDate = selectedDate || '';
     
-    // Setup URL
+    // --- SECURITY UPDATE: URL Builder ---
+    // Gunakan baseUrlApp global dari View sebagai base
+    // Hapus trailing slash dari base dan leading slash dari path agar rapi
     var base = (typeof baseUrlApp !== 'undefined') ? baseUrlApp : window.location.origin;
     var cleanBase = base.replace(/\/+$/, '');
     var cleanPath = apiUrlPath.replace(/^\/+/, '');
@@ -103,15 +89,12 @@ function loadData(selectedDateYMD) {
         urlObj.searchParams.append('tanggal', dbFormatDate);
     }
     
-    // Loading State
-    $('#dataTableBody').html('<tr><td colspan="5" class="text-center py-5"><i class="fa fa-spinner fa-spin fa-2x text-primary mb-2"></i><br>Memuat data...</td></tr>');
+    $('#dataTableBody').html('<tr><td colspan="5" class="text-center"><i class="fa fa-spinner fa-spin me-2"></i> Memuat data...</td></tr>');
     
-    // Destroy tabel lama jika ada
     if ($.fn.DataTable.isDataTable('#tableSidang')) {
         $('#tableSidang').DataTable().destroy();
     }
 
-    // Fetch Data
     fetch(urlObj)
         .then(response => {
             if (!response.ok) throw new Error("Gagal memuat data.");
@@ -121,37 +104,28 @@ function loadData(selectedDateYMD) {
             let dataArray = [];
             if (result.status === 200 && result.data.length > 0) {
                 result.data.forEach(row => {
+                    // --- SECURITY: GUNAKAN escapeHtml() ---
+                    // Mencegah injeksi script jika ada data nama yang aneh
                     dataArray.push([
-                        // Kolom 0: Checkbox
                         '<input class="form-check-input row-checkbox" type="checkbox" name="pilih_data[]" value="' + escapeHtml(row.nomor_perkara) + '">',
-                        // Kolom 1: Nama
                         '<span class="fw-bold text-white">' + escapeHtml(row.nama_bersih) + '</span>',                                
-                        // Kolom 2: No Perkara
                         escapeHtml(row.nomor_perkara),
-                        // Kolom 3: JPU
                         escapeHtml(row.jpu),
-                        // Kolom 4: Aksi
                         '<button type="button" class="btn btn-sm btn-outline-info view-details"><i class="fa-solid fa-magnifying-glass-chart"></i></button>',
-                        // Kolom 5: Hidden Tanggal
                         row.tanggal_sidang 
                     ]);
                 });
             }
             initDataTable(dataArray);
-            
-            // Simpan tanggal format Indo ke hidden input (untuk form submit)
-            $('#inputTanggalHidden').val(dbFormatDate);
-            
+            $('#inputTanggalHidden').val(selectedDate);
             updateBtnState(); 
         })
         .catch(error => {
-            console.error(error);
             initDataTable([]); 
             updateBtnState();
         });
 }
 
-// INISIALISASI DATATABLE
 function initDataTable(dataSet) {
     table = $('#tableSidang').DataTable({
         "data": dataSet, 
@@ -165,15 +139,16 @@ function initDataTable(dataSet) {
         "language": {
             "search": "", 
             "searchPlaceholder": "Cari Data Terdakwa...",
-            "emptyTable": "Tidak ada data. Silakan pilih tanggal atau Sinkronisasi.", 
+            "emptyTable": "Tidak ada data.", 
             "zeroRecords": "Data tidak ditemukan."
         },
         "columnDefs": [
             { "targets": [0, 4], "className": "text-center", "orderable": false }, 
             { "targets": 5, "visible": false }
         ],
-        // Responsive Mobile Label
+        // --- TAMBAHAN PENTING UNTUK MOBILE CSS ---
         "createdRow": function (row, data, dataIndex) {
+            // Kita suntikkan atribut data-label ke setiap TD agar CSS bisa membacanya
             var columns = ['Pilih', 'Nama Terdakwa', 'Nomor Perkara', 'Jaksa Penuntut Umum', 'Aksi'];
             $('td', row).each(function (i) {
                 if (columns[i]) {
@@ -184,56 +159,70 @@ function initDataTable(dataSet) {
     });
 }
 
-// ============================================================
-// 4. DOCUMENT READY (EVENT LISTENERS)
-// ============================================================
+// --- DOCUMENT READY ---
 $(document).ready(function() {
 
-    // A. LOGIKA SINKRONISASI (FIXED DATE PICKER)
+    // 1. LOGIKA SINKRONISASI (BLOCK WEEKEND)
     $('#btnSyncData').on('click', function(e) {
         e.preventDefault(); 
-        
-        // 1. Ambil value dari Input Date (Format: YYYY-MM-DD)
-        var rawDate = $('#dateFilter').val();
 
-        if (!rawDate) {
-            alert("Harap pilih tanggal di kalender terlebih dahulu!");
-            return false;
+        var now = new Date();
+        var day = now.getDay(); // 0 = Minggu, 6 = Sabtu
+
+        if (day === 0 || day === 6) {
+            alert("MAAF, SINKRONISASI TIDAK BISA DILAKUKAN.\n\nAlasan: Hari ini bukan hari kerja (Sabtu/Minggu).");
+            return false; 
         }
 
-        // 2. Ubah ke format DD-MM-YYYY
-        var indoDate = formatDateToIndo(rawDate);
-
-        // 3. Konfirmasi
-        var confirmAction = confirm('SINKRONISASI GOOGLE SHEET\n\nTanggal Sasaran: ' + indoDate + '\n\nPastikan data di Excel Master/Harian sudah siap. Lanjutkan?');
-        
+        var confirmAction = confirm('Proses ini akan mengambil data terbaru dari Google Sheet.\nLanjutkan Sinkronisasi?');
         if (confirmAction) {
+
             var $btn = $(this);
-            var base = (typeof baseUrlApp !== 'undefined') ? baseUrlApp : window.location.origin;
-            var cleanBase = base.replace(/\/+$/, '');
-            var targetUrl = cleanBase + '/sidang/sync?tanggal=' + indoDate;
+            var redirectUrl = $btn.attr('href');
 
             $btn.addClass('disabled').css('pointer-events','none');
             $btn.html('<i class="fa-solid fa-circle-notch fa-spin me-2"></i> MOHON TUNGGU...');
 
             setTimeout(function(){
-                window.location.href = targetUrl;
-            }, 500);
+            window.location.href = redirectUrl;
+
+            }, 300);
         }
     });
+    
+    // 2. AUTO HIDE ALERT
+    window.setTimeout(function() {
+        $(".alert").fadeTo(500, 0).slideUp(500, function(){ $(this).remove(); });
+    }, 10000); 
 
-    // B. EVENT GANTI TANGGAL (Load Data Otomatis)
+    // 3. Init
+    initDataTable([]);
+    var elModal = document.getElementById('modalConfigCetak');
+    var myAppModal = new bootstrap.Modal(elModal, { backdrop: 'static', keyboard: false });
+    
+    // --- TAMBAHAN FIX ERROR ARIA-HIDDEN ---
+    // Paksa hapus atribut aria-hidden saat modal mau muncul
+    elModal.addEventListener('show.bs.modal', function () {
+        this.removeAttribute('aria-hidden');
+    });
+    
+    // Pastikan benar-benar hilang saat sudah muncul
+    elModal.addEventListener('shown.bs.modal', function () {
+        this.removeAttribute('aria-hidden');
+    });
+    // --------------------------------------
+    
+    
+    
+    
+    var formToSubmit = null; 
+
+    // 4. EVENT LISTENER
     $('#dateFilter').on('change', function() {
-        var val = $(this).val();
-        if(val) {
-            loadData(val);
-        } else {
-            initDataTable([]);
-        }
+        loadData($(this).val());
         $('#checkAll').prop('checked', false);
     });
 
-    // C. CHECKBOX P-38 vs P-37 LOGIC
     $('#chkP38').on('change', function() {
         if ($(this).is(':checked')) {
             $('#chkP37').prop('checked', false).prop('disabled', true);
@@ -252,18 +241,19 @@ $(document).ready(function() {
         updateBtnState();
     });
 
-    // D. CHECKBOX TABEL LOGIC
     $('#tableSidang tbody').on('change', '.row-checkbox', updateBtnState);
 
-    // Fitur klik baris tabel (UX)
+    // UX KLIK ROW
     $('#tableSidang tbody').on('click', 'tr', function(e) {
         if ($(e.target).closest('button, a, .view-details').length) return; 
 
         var chk = $(this).find('.row-checkbox');
+        
         if ($(e.target).is('input[type="checkbox"]')) {
             chk.is(':checked') ? $(this).addClass('selected-row') : $(this).removeClass('selected-row');
             return;
         }
+
         if (chk.prop('disabled')) return;
 
         var currentState = chk.prop('checked');
@@ -281,18 +271,7 @@ $(document).ready(function() {
         }
     });
 
-    // E. MODAL & SUBMIT FORM CETAK
-    var elModal = document.getElementById('modalConfigCetak');
-    // Init Bootstrap Modal
-    var myAppModal = new bootstrap.Modal(elModal, { backdrop: 'static', keyboard: false });
-    
-    // Fix Error Aria-Hidden Bootstrap
-    elModal.addEventListener('show.bs.modal', function () { this.removeAttribute('aria-hidden'); });
-    elModal.addEventListener('shown.bs.modal', function () { this.removeAttribute('aria-hidden'); });
-
-    var formToSubmit = null; 
-
-    // Tombol "Proses Seleksi" diklik
+    // 5. SUBMIT HANDLER
     $('#formCetak').on('submit', function(e){
         e.preventDefault();
 
@@ -301,47 +280,44 @@ $(document).ready(function() {
         var countChecked = table ? table.rows().nodes().to$().find('.row-checkbox:checked').length : 0;
 
         if (!isP38 && !isP37) { alert("Pilih jenis dokumen!"); return false; }
-        
-        // Validasi P-37 wajib pilih minimal 1
         if (isP37 && countChecked === 0) { 
             alert("Untuk P-37, Anda wajib memilih minimal satu data terdakwa!"); 
             return false; 
         }
 
-        // Tampilkan/Sembunyikan Input Nomor Surat
         if (isP38) {
             $('#blockNomorSurat').show();
-            // Jika pilih checkbox -> mode seleksi, jika tidak -> mode full
             if (countChecked > 0) {
                 $('#inputModeCetak').val('seleksi'); 
             } else {
                 $('#inputModeCetak').val('full_p38'); 
             }
         } else {
-            // P-37 biasanya otomatis nomor suratnya atau per-perkara
             $('#blockNomorSurat').hide();
             $('#cfgNomorSurat').val('');
             $('#inputModeCetak').val('seleksi'); 
         }
 
         formToSubmit = this;
-        myAppModal.show(); // Tampilkan Modal Konfigurasi
+        myAppModal.show();
     });
 
-    // Tombol "LANJUTKAN CETAK" di Modal
+    // 6. FINAL PROSES DI MODAL (DENGAN VALIDASI)
     $('#btnFinalCetak').on('click', function() {
         
-        // 1. Reset Validasi UI
+        // --- 1. RESET VALIDASI ---
         $('#alertModal').addClass('d-none');
         $('.form-control-modern').removeClass('is-invalid');
         let isValid = true;
 
-        // 2. Cek Input Wajib di Modal
+        // --- 2. CEK INPUT WAJIB ---
+        // Loop semua input yang punya class 'validate-input'
         $('.validate-input').each(function() {
-            // Skip Nomor Surat jika sedang di-hidden
+            // Skip Nomor Surat jika parent-nya (blockNomorSurat) sedang hidden (P-37 mode)
             if ($(this).attr('id') === 'cfgNomorSurat' && $('#blockNomorSurat').is(':hidden')) {
                 return; 
             }
+
             if ($.trim($(this).val()) === '') {
                 $(this).addClass('is-invalid');
                 isValid = false;
@@ -350,44 +326,40 @@ $(document).ready(function() {
 
         if (!isValid) {
             $('#alertModal').removeClass('d-none');
-            // Animasi getar
+            // Efek getar biar sadar
             $('.modal-content').addClass('shake-anim');
             setTimeout(() => $('.modal-content').removeClass('shake-anim'), 500);
-            return false; 
+            return false; // Stop proses
         }
 
-        // 3. Persiapan Submit
-        // Hapus data lama yg mungkin nempel
+        // --- 3. JIKA VALID, LANJUT SUBMIT ---
         $(formToSubmit).find('.extra-data').remove(); 
-        $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();
+        
+        var formatSelected = $('input[name="formatOutput"]:checked').val(); // Ambil Word/PDF
 
-        var formatSelected = $('input[name="formatOutput"]:checked').val(); // Word/PDF
-
-        // Kumpulkan data dari Modal
         var inputs = [
             { name: 'custom_nomor_surat', val: $('#cfgNomorSurat').val() },
             { name: 'custom_instansi', val: $('#cfgInstansi').val() },
             { name: 'custom_kota', val: $('#cfgKota').val() },
             { name: 'ttd_jabatan', val: $('#cfgJabatan').val() },
-            { name: 'ttd_pangkat', val: $('#cfgPangkat').val() }, 
+            { name: 'ttd_pangkat', val: $('#cfgPangkat').val() }, // INPUT BARU
             { name: 'ttd_nama', val: $('#cfgNamaPejabat').val() },
             { name: 'ttd_nip', val: $('#cfgNipPejabat').val() },
-            { name: 'output_format', val: formatSelected }         
+            { name: 'output_format', val: formatSelected }         // INPUT BARU
         ];
 
-        // Inject ke Form Utama
         inputs.forEach(item => {
             $('<input>').attr({type: 'hidden', name: item.name, value: item.val, class: 'extra-data'}).appendTo(formToSubmit);
         });
 
-        // Inject Data Checkbox dari DataTable
+        // Append Checkbox Data
+        $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();
         if (table) {
              table.rows().nodes().to$().find('.row-checkbox:checked').each(function(){
                 $(formToSubmit).append($('<input>').attr('type', 'hidden').attr('name', 'pilih_data[]').val($(this).val()));
             });
         }
 
-        // 4. Eksekusi Submit
         $(this).prop('disabled', true).html('<i class="fa fa-spinner fa-spin"></i> Memproses...');
         
         setTimeout(() => {
@@ -396,17 +368,4 @@ $(document).ready(function() {
             $(this).prop('disabled', false).html('<i class="fa-solid fa-print me-2"></i> LANJUTKAN CETAK');
         }, 500);
     });
-
-    // F. UTILS LAINNYA
-    // Auto Hide Alert
-    window.setTimeout(function() {
-        $(".alert").fadeTo(500, 0).slideUp(500, function(){ $(this).remove(); });
-    }, 10000); 
-
-    // Initial Load (Jika date input sudah ada value/hari ini)
-    initDataTable([]);
-    var initialDate = $('#dateFilter').val();
-    if(initialDate) {
-        loadData(initialDate);
-    }
 });
