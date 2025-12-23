@@ -219,7 +219,7 @@
                             <label class="form-label-modern required-field">NIP / NRP</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-id-card"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgNipPejabat" placeholder="199...">
+                                <input type="text" class="form-control form-control-modern" id="cfgNipPejabat" placeholder="199...">
                             </div>
                         </div>
                     </div>

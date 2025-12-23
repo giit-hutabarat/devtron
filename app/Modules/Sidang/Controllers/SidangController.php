@@ -209,48 +209,40 @@ class SidangController extends BaseController
 
     public function sync()
     {
-        // =========================================================================
-        // 1. VALIDASI INPUT TANGGAL (OMNIVORE - TERIMA SEMUA FORMAT)
-        // =========================================================================
+        // 1. SETUP TANGGAL TARGET
         $reqTanggal = $this->request->getGet('tanggal');
         $tglHariIni = date('Y-m-d');
-        $tglSidang  = $tglHariIni; // Default fallback
+        $tglSidang  = $tglHariIni;
 
         if (!empty($reqTanggal)) {
-            // Cek 1: Format YYYY-MM-DD (Standar HTML5 / ISO)
+            // Cek Format YYYY-MM-DD
             $d1 = \DateTime::createFromFormat('Y-m-d', $reqTanggal);
             if ($d1 && $d1->format('Y-m-d') === $reqTanggal) {
                 $tglSidang = $reqTanggal;
-            } 
-            else {
-                // Cek 2: Format DD-MM-YYYY (Format Indo/Url)
+            } else {
+                // Cek Format DD-MM-YYYY
                 $d2 = \DateTime::createFromFormat('d-m-Y', $reqTanggal);
                 if ($d2 && $d2->format('d-m-Y') === $reqTanggal) {
                     $tglSidang = $d2->format('Y-m-d');
                 } else {
-                    return redirect()->to('sidang')->with('error', "Format tanggal URL tidak dikenali. Gunakan DD-MM-YYYY.");
+                    return redirect()->to('sidang')->with('error', "Format tanggal URL salah. Gunakan DD-MM-YYYY.");
                 }
             }
         }
 
-        // =========================================================================
-        // 2. SNAPSHOT: HAPUS DATA LAMA (ANTI-DOUBLE)
-        // =========================================================================
+        // 2. SNAPSHOT: HAPUS DATA LAMA
         $this->sidangModel->where('tanggal_sidang', $tglSidang)->delete();
 
-        // =========================================================================
-        // 3. AMBIL DATA GOOGLE SHEET (DATA_MASTER)
-        // =========================================================================
+        // 3. AMBIL DATA MASTER
         try {
             $masterSheet = $this->fetchSheet('DATA_MASTER!A2:Z'); 
         } catch (\Throwable $e) {
             return redirect()->to('sidang')->with('error', "Gagal koneksi Google Sheet: " . $e->getMessage());
         }
 
-        // Mapping Data Master (Key: No Perkara di Kolom A / Index 0)
+        // Mapping Data Master
         $masterMap = [];
         foreach ($masterSheet as $rowM) {
-            // Pastikan row memiliki kolom A
             if(isset($rowM[0]) && !empty($rowM[0])) {
                 $kunci = trim($rowM[0]); 
                 $masterMap[$kunci] = $rowM;
@@ -262,11 +254,9 @@ class SidangController extends BaseController
         $sourceData = [];
         $srcLabel = "";
 
-        // =========================================================================
-        // 4. LOGIKA PENCARIAN DATA (PRIORITAS: HARIAN -> MASTER)
-        // =========================================================================
+        // 4. LOGIKA PENCARIAN (PRIORITAS: HARIAN -> MASTER)
         
-        // STEP A: Cek Sheet "SIDANG HARI INI" (Hanya jika tanggal target == Hari Ini)
+        // STEP A: Cek Sheet Harian (Jika tanggal target = hari ini)
         if ($tglSidang === $tglHariIni) {
             try {
                 $sheetHarian = $this->fetchSheet('SIDANG HARI INI!A2:G'); 
@@ -274,7 +264,6 @@ class SidangController extends BaseController
                     foreach ($sheetHarian as $rowS) {
                         $noPerkara = trim($rowS[0] ?? '');
                         if (empty($noPerkara)) continue;
-
                         $sourceData[] = [
                             'no_perkara' => $noPerkara,
                             'nama_raw'   => $rowS[1] ?? '-',
@@ -287,17 +276,16 @@ class SidangController extends BaseController
                     }
                     if(count($sourceData) > 0) $srcLabel = "Sheet Harian";
                 }
-            } catch (\Throwable $e) { /* Silent fail */ }
+            } catch (\Throwable $e) { }
         }
 
-        // STEP B: Jika Data Masih Kosong (Bukan hari ini / Harian kosong) -> CARI DI MASTER
+        // STEP B: Cek DATA MASTER (Jika data masih kosong)
         if (empty($sourceData)) {
             $srcLabel = "Data Master";
             
-            // --- KONFIGURASI KOLOM EXCEL ---
-            // Sesuaikan dengan file 'DATA_MASTER.csv'
+            // --- INDEX KOLOM DATA MASTER ---
             $idxTglSidang = 6;  // Kolom G (HARI SIDANG)
-            $idxAgenda    = 3;  // Kolom D (AGENDA SIDANG) -> *Update: Di CSV lo Agenda kolom D (Index 3)*
+            $idxAgenda    = 3;  // Kolom D (AGENDA SIDANG)
             $idxJpu       = 4;  // Kolom E (JPU)
             // -------------------------------
 
@@ -306,28 +294,32 @@ class SidangController extends BaseController
                 $isMatch = false;
 
                 if (!empty($tglRaw)) {
-                    $tglRaw = trim($tglRaw); // Bersihkan spasi
-                    
-                    // --- LOGIKA ROBUST DATE MATCHING (3 CARA) ---
-                    
-                    // Cara 1: Cek Langsung (Untuk format YYYY-MM-DD atau US MM/DD/YYYY)
-                    $ts1 = strtotime($tglRaw);
-                    if ($ts1 && date('Y-m-d', $ts1) === $tglSidang) {
-                        $isMatch = true;
-                    }
+                    $tglRaw = trim($tglRaw);
 
-                    // Cara 2: Paksa Format Indo (Untuk format DD/MM/YYYY -> DD-MM-YYYY)
+                    // --- [FIX] LOGIKA "MATA DEWA" (3 CARA CEK) ---
+
+                    // CARA 1: Cek jika data berupa ANGKA SERIAL EXCEL (Misal: 45648)
+                    if (is_numeric($tglRaw) && $tglRaw > 20000) {
+                        $unixDate = ($tglRaw - 25569) * 86400;
+                        if (date('Y-m-d', $unixDate) === $tglSidang) {
+                            $isMatch = true;
+                        }
+                    }
+                    // CARA 2: Cek Format Text Standard (2025-12-22 atau 12/22/2025)
+                    else {
+                        $ts = strtotime($tglRaw);
+                        if ($ts && date('Y-m-d', $ts) === $tglSidang) {
+                            $isMatch = true;
+                        }
+                    }
+                    // CARA 3: Cek Format Text Indo (22/12/2025 -> paksa jadi 22-12-2025)
                     if (!$isMatch) {
+                        // INI YANG PALING PENTING BUAT KASUS LO
                         $tglIndo = str_replace('/', '-', $tglRaw); 
                         $ts2 = strtotime($tglIndo);
                         if ($ts2 && date('Y-m-d', $ts2) === $tglSidang) {
                             $isMatch = true;
                         }
-                    }
-
-                    // Cara 3: Cek Manual String Match (Jaga-jaga format YYYY-MM-DD text)
-                    if (!$isMatch && $tglRaw === $tglSidang) {
-                        $isMatch = true;
                     }
                 }
 
@@ -336,7 +328,7 @@ class SidangController extends BaseController
                         'no_perkara' => trim($rowM[0] ?? ''),
                         'nama_raw'   => $rowM[1] ?? '-',
                         'jenis'      => $rowM[2] ?? '-',
-                        // Fallback Agenda: Cek Index 3 (Agenda), kalau kosong cek Index 19 (Agenda Lama?)
+                        // Fallback Agenda: Cek Index 3, kalau kosong cek Index 19
                         'agenda'     => !empty($rowM[$idxAgenda]) ? $rowM[$idxAgenda] : ($rowM[19] ?? 'Sidang'),
                         'jpu'        => $rowM[$idxJpu] ?? '-',
                         'status'     => 'Terjadwal',
@@ -346,19 +338,15 @@ class SidangController extends BaseController
             }
         }
 
-        // =========================================================================
         // 5. INSERT KE DATABASE
-        // =========================================================================
         foreach ($sourceData as $data) {
             $noPerkara = $data['no_perkara'];
-            
             if (empty($noPerkara)) continue;
             if (in_array($noPerkara, $processedPerkara)) continue;
 
             $nama = $this->cleanNamaTerdakwa($data['nama_raw']);
             $rowM = $masterMap[$noPerkara] ?? [];
             
-            // Biodata Parsing
             $ttlRaw = $rowM[10] ?? null; 
             $tempatLahir = '-'; $tglLahir = '-';
             if ($ttlRaw) {
@@ -593,7 +581,7 @@ class SidangController extends BaseController
                         $proc->setValue('jenis_perkara#' . $rowIndex, $rowData['jenis_perkara']);
                         $proc->setValue('agenda#' . $rowIndex, $rowData['agenda']);
                     }
-
+                    /*
                     $proc->cloneRow('no_2', $countRows); 
                     foreach ($tableRows as $index => $rowData) {
                         $rowIndex = $index + 1; 
@@ -604,6 +592,7 @@ class SidangController extends BaseController
                         $proc->setValue('status_sidang_2#' . $rowIndex, $rowData['status_sidang']);
                         $proc->setValue('jenis_perkara_2#' . $rowIndex, $rowData['jenis_perkara']);
                     }
+                        */
 
                     $finalName = $baseFileName . '.docx';
                     $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalName;
