@@ -225,7 +225,7 @@ class SidangController extends BaseController
                 if ($d2 && $d2->format('d-m-Y') === $reqTanggal) {
                     $tglSidang = $d2->format('Y-m-d');
                 } else {
-                    return redirect()->to('sidang')->with('error', "Format tanggal URL salah. Gunakan DD-MM-YYYY.");
+                    return redirect()->to('sidang')->with('error', "Format tanggal URL salah.");
                 }
             }
         }
@@ -254,9 +254,9 @@ class SidangController extends BaseController
         $sourceData = [];
         $srcLabel = "";
 
-        // 4. LOGIKA PENCARIAN (PRIORITAS: HARIAN -> MASTER)
+        // 4. LOGIKA PENCARIAN
         
-        // STEP A: Cek Sheet Harian (Jika tanggal target = hari ini)
+        // OPSI A: Cek Sheet Harian (Jika tanggal target = hari ini)
         if ($tglSidang === $tglHariIni) {
             try {
                 $sheetHarian = $this->fetchSheet('SIDANG HARI INI!A2:G'); 
@@ -279,45 +279,69 @@ class SidangController extends BaseController
             } catch (\Throwable $e) { }
         }
 
-        // STEP B: Cek DATA MASTER (Jika data masih kosong)
+        // OPSI B: FILTER MANUAL DATA MASTER (Kuncinya disini!)
         if (empty($sourceData)) {
             $srcLabel = "Data Master";
             
-            // --- INDEX KOLOM DATA MASTER ---
-            $idxTglSidang = 6;  // Kolom G (HARI SIDANG)
-            $idxAgenda    = 3;  // Kolom D (AGENDA SIDANG)
-            $idxJpu       = 4;  // Kolom E (JPU)
-            // -------------------------------
+            $idxTglSidang = 6;  // Kolom G
+            $idxAgenda    = 3;  // Kolom D
+            $idxJpu       = 4;  // Kolom E
+
+            // KAMUS BULAN INDONESIA
+            $bulanIndo = [
+                'Januari' => '01', 'Februari' => '02', 'Maret' => '03', 'April' => '04', 
+                'Mei' => '05', 'Juni' => '06', 'Juli' => '07', 'Agustus' => '08', 
+                'September' => '09', 'Oktober' => '10', 'November' => '11', 'Desember' => '12'
+            ];
 
             foreach ($masterSheet as $rowM) {
-                $tglRaw = $rowM[$idxTglSidang] ?? '';
+                $tglRaw = $rowM[$idxTglSidang] ?? ''; 
                 $isMatch = false;
 
                 if (!empty($tglRaw)) {
                     $tglRaw = trim($tglRaw);
 
-                    // --- [FIX] LOGIKA "MATA DEWA" (3 CARA CEK) ---
+                    // --- CARA 1: PARSING FORMAT INDONESIA ("Selasa, 23 Desember 2025") ---
+                    // Hapus nama hari (ambil setelah koma, atau biarkan jika tidak ada koma)
+                    $cleanDate = $tglRaw;
+                    if (strpos($tglRaw, ',') !== false) {
+                        $parts = explode(',', $tglRaw);
+                        $cleanDate = trim(end($parts)); // Ambil bagian tanggalnya saja: "23 Desember 2025"
+                    }
 
-                    // CARA 1: Cek jika data berupa ANGKA SERIAL EXCEL (Misal: 45648)
-                    if (is_numeric($tglRaw) && $tglRaw > 20000) {
+                    // Pecah Spasi: "23" "Desember" "2025"
+                    $dateParts = explode(' ', $cleanDate);
+                    
+                    if (count($dateParts) == 3) {
+                        $d = $dateParts[0]; // 23
+                        $mText = $dateParts[1]; // Desember
+                        $y = $dateParts[2]; // 2025
+
+                        // Terjemahkan Bulan
+                        if (isset($bulanIndo[$mText])) {
+                            $m = $bulanIndo[$mText];
+                            // Rakit jadi YYYY-MM-DD
+                            $finalDate = "$y-$m-$d"; // 2025-12-23
+                            
+                            // Bandingkan format standar (tanggal & bulan 1 digit aman karena PHP handle 01 vs 1)
+                            if (strtotime($finalDate) == strtotime($tglSidang)) {
+                                $isMatch = true;
+                            }
+                        }
+                    }
+
+                    // --- CARA 2: SERIAL NUMBER (BACKUP) ---
+                    if (!$isMatch && is_numeric($tglRaw) && $tglRaw > 20000) {
                         $unixDate = ($tglRaw - 25569) * 86400;
                         if (date('Y-m-d', $unixDate) === $tglSidang) {
                             $isMatch = true;
                         }
                     }
-                    // CARA 2: Cek Format Text Standard (2025-12-22 atau 12/22/2025)
-                    else {
-                        $ts = strtotime($tglRaw);
-                        if ($ts && date('Y-m-d', $ts) === $tglSidang) {
-                            $isMatch = true;
-                        }
-                    }
-                    // CARA 3: Cek Format Text Indo (22/12/2025 -> paksa jadi 22-12-2025)
+
+                    // --- CARA 3: FORMAT STANDAR (BACKUP) ---
                     if (!$isMatch) {
-                        // INI YANG PALING PENTING BUAT KASUS LO
-                        $tglIndo = str_replace('/', '-', $tglRaw); 
-                        $ts2 = strtotime($tglIndo);
-                        if ($ts2 && date('Y-m-d', $ts2) === $tglSidang) {
+                        $ts = strtotime(str_replace('/', '-', $tglRaw));
+                        if ($ts && date('Y-m-d', $ts) === $tglSidang) {
                             $isMatch = true;
                         }
                     }
@@ -328,7 +352,6 @@ class SidangController extends BaseController
                         'no_perkara' => trim($rowM[0] ?? ''),
                         'nama_raw'   => $rowM[1] ?? '-',
                         'jenis'      => $rowM[2] ?? '-',
-                        // Fallback Agenda: Cek Index 3, kalau kosong cek Index 19
                         'agenda'     => !empty($rowM[$idxAgenda]) ? $rowM[$idxAgenda] : ($rowM[19] ?? 'Sidang'),
                         'jpu'        => $rowM[$idxJpu] ?? '-',
                         'status'     => 'Terjadwal',
@@ -391,6 +414,7 @@ class SidangController extends BaseController
         $tglIndoLabel = date('d-m-Y', strtotime($tglSidang));
         return redirect()->to('sidang')->with('success', "Sinkronisasi Selesai ($srcLabel). Tanggal: $tglIndoLabel | Data Masuk: $countInsert");
     }
+
     // ==========================================================
     // CORE LOGIC: PROSES CETAK (WORD & PDF)
     // ==========================================================
@@ -724,4 +748,78 @@ class SidangController extends BaseController
         $timestamp = strtotime($tanggal);
         return date('d', $timestamp) . ' ' . $bulan[(int)date('m', $timestamp)] . ' ' . date('Y', $timestamp);
     }
+
+    /*public function diagnosa()
+    {
+        $reqTanggal = $this->request->getGet('tanggal');
+        if (empty($reqTanggal)) return "Masukkan tanggal di URL! Contoh: /sidang/diagnosa?tanggal=22-12-2025";
+
+        // Konversi Tanggal Target
+        $targetYMD = '';
+        $d = \DateTime::createFromFormat('d-m-Y', $reqTanggal);
+        if ($d) $targetYMD = $d->format('Y-m-d');
+
+        echo "<h1>🕵️ MODE DIAGNOSA DATA</h1>";
+        echo "Target Input: <b>$reqTanggal</b> (Format DB: <b>$targetYMD</b>)<br>";
+        echo "Mencari di Kolom Index: <b>6</b> (Kolom G)<br><hr>";
+
+        try {
+            // Ambil 20 baris pertama dari DATA_MASTER untuk dicek
+            $data = $this->fetchSheet('DATA_MASTER!A2:Z20'); 
+        } catch (\Throwable $e) {
+            return "Error Koneksi: " . $e->getMessage();
+        }
+
+        echo "<table border='1' cellpadding='5' cellspacing='0' style='font-family:monospace; font-size:12px;'>";
+        echo "<tr style='background:#ccc'>
+                <th>Index 0 (A)<br>No Perkara</th>
+                <th>Index 6 (G)<br>DATA MENTAH</th>
+                <th>Panjang Kar.</th>
+                <th>Hasil Cek System</th>
+              </tr>";
+
+        foreach ($data as $key => $row) {
+            $colA = $row[0] ?? '-'; // No Perkara
+            $rawG = $row[6] ?? 'NULL'; // Kolom Tanggal (G)
+            
+            // Cek Karakter Hantu (Hex Dump)
+            $hex = bin2hex($rawG); 
+            
+            // Simulasi Logika Sync
+            $status = "<span style='color:red'>TIDAK COCOK</span>";
+            $cleanG = trim($rawG);
+            
+            // Tes 1: String Match
+            if ($cleanG === $targetYMD) $status = "<span style='color:green'>COCOK (String Match)</span>";
+            
+            // Tes 2: Serial Excel
+            elseif (is_numeric($cleanG) && $cleanG > 20000) {
+                $unix = ($cleanG - 25569) * 86400;
+                $excelDate = date('Y-m-d', $unix);
+                if ($excelDate === $targetYMD) $status = "<span style='color:green'>COCOK (Serial: $excelDate)</span>";
+                else $status .= " <small>(Serial terbaca: $excelDate)</small>";
+            }
+            
+            // Tes 3: Parsing Indo
+            else {
+                $indoStr = str_replace('/', '-', $cleanG);
+                $ts = strtotime($indoStr);
+                if ($ts) {
+                    $parseDate = date('Y-m-d', $ts);
+                    if ($parseDate === $targetYMD) $status = "<span style='color:green'>COCOK (Parsing: $parseDate)</span>";
+                    else $status .= " <small>(Parse terbaca: $parseDate)</small>";
+                } else {
+                    $status .= " <small>(Gagal Parse)</small>";
+                }
+            }
+
+            echo "<tr>";
+            echo "<td>" . htmlspecialchars($colA) . "</td>";
+            echo "<td style='background:#ffffcc; font-weight:bold;'>[" . htmlspecialchars($rawG) . "]</td>";
+            echo "<td>" . strlen($rawG) . " char<br><span style='color:#999; font-size:10px'>Hex: $hex</span></td>";
+            echo "<td>$status</td>";
+            echo "</tr>";
+        }
+        echo "</table>";
+    }*/
 }

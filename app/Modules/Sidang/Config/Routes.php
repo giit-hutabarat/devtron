@@ -13,21 +13,26 @@ $adminSetupController = '\App\Modules\Sidang\Controllers\AdminSetupController';
 // ====================================================================
 // 1. ⬇️ RUTE AKSES PEGAWAI (DILINDUNGI OTP) ⬇️ (TIDAK BERUBAH)
 // ====================================================================
+// ... baris 19 ...
 $routes->group('sidang', function($routes) use ($sidangController) {
     
-    // Rute Akses Login OTP (Pintu masuk menu utama)
+    // Rute Akses Login OTP
     $routes->get('access', "{$sidangController}::accessForm"); 
     $routes->post('verify', "{$sidangController}::verifyOtp"); 
 
     // Rute Terlindungi
     $routes->get('/', "{$sidangController}::index", ['filter' => 'sidang_auth']);
     $routes->get('sync', "{$sidangController}::sync", ['filter' => 'sidang_auth']);
+    
+    // --- [TEMPELKAN DISINI] ---
+    //$routes->get('diagnosa', "{$sidangController}::diagnosa", ['filter' => 'sidang_auth']); 
+    // --------------------------
+
     $routes->post('proses', "{$sidangController}::proses", ['filter' => 'sidang_auth']);
     
     $routes->get('api/data', "{$sidangController}::apiData", ['filter' => 'sidang_auth']);
     $routes->get('logout', "{$sidangController}::logout");
 });
-
 
 // ====================================================================
 // 2. ⬇️ RUTE ADMINISTRASI ADMIN SIDANG (WEB VIEW + API) ⬇️
