@@ -420,6 +420,7 @@ class SidangController extends BaseController
     // ==========================================================
     public function proses()
     {
+  
         // 1. VALIDASI INPUT
         $selectedNoPerkara = $this->request->getPost('pilih_data');
         $docTypes          = $this->request->getPost('jenis_dokumen');
@@ -476,58 +477,99 @@ class SidangController extends BaseController
 
         if (empty($targetData)) return redirect()->back()->with('error', 'Data tidak ditemukan.');
 
+        // Tambahkan ini di awal method proses() atau sebelum loop targetData
+        $toTitle = function($str) {
+            return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
+        };
+
         // -----------------------------------------------------
-        // GENERATE P-37 (WORD ONLY)
+        // GENERATE P-37 (HYBRID: WORD ATAU PDF)
         // -----------------------------------------------------
         if (is_array($docTypes) && in_array('p37', $docTypes)) {
             foreach ($targetData as $row) {
                 $details = json_decode($row['data_full'], true);
+                
+                // Logika Nama Hari & Tanggal Sidang Indo
+                $timestampSidang = strtotime($row['tanggal_sidang']);
+                $hariArr = [
+                    'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa', 
+                    'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+                ];
+                $namaHari = $hariArr[date('l', $timestampSidang)];
+                $tglSidangIndo = $this->formatTglSaja($row['tanggal_sidang']); // Contoh: 24 Desember 2025
+
+                // Penentuan Tanda Tangan
                 $finalTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
                 $finalTtdNip  = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
                 $finalTtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM';
-                
-                $hariSidangIndo = $this->formatTanggalIndo($row['tanggal_sidang']);
-                $tglSuratIndo   = $this->formatTglSaja(date('Y-m-d'));
-                $instansiValue  = strtoupper($customInstansi);
+
+                // Penentuan Tanda Tangan
+                $rawTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
 
                 $dataRow = [
-                    'nama_instansi'   => $instansiValue,
-                    'kota_surat'      => $customKota,
-                    'tanggal_surat'   => $tglSuratIndo,
+                    // Ubah strtoupper menjadi $toTitle
+                    'nama_instansi'   => $toTitle($customInstansi), 
+                    'kota_surat'      => $toTitle($customKota),
+                    'tanggal_surat'   => $this->formatTglSaja(date('Y-m-d')),
                     'nomor_perkara'   => $row['nomor_perkara'],
-                    'nama_terdakwa'   => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
-                    'jpu'             => $row['jpu'],
-                    'hari_sidang'     => $hariSidangIndo,
-                    'jenis_perkara'   => $details['jenis_perkara'] ?? 'Pidana Umum',
+                    'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])),
+
+                    // KOREKSI 1: JPU & TTD Nama dipaksa UPPERCASE untuk mengakomodir gelar pendidikan
+                    'jpu'             => strtoupper($row['jpu']), 
+                    'ttd_nama'        => strtoupper($rawTtdNama),
+
+                    'nama_hari'       => $namaHari,        
+                    'hari_sidang'     => $tglSidangIndo,   
+                    'jenis_perkara'   => $toTitle($details['jenis_perkara'] ?? 'Pidana Umum'),
                     'agenda'          => $details['agenda_raw'] ?? '-', 
-                    'tempat_lahir'    => $details['tempat_lahir'] ?? '-',
+                    'tempat_lahir'    => $toTitle($details['tempat_lahir'] ?? '-'),
                     'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
                     'umur'            => $details['umur'] ?? '-',
-                    'jenis_kelamin'   => $details['jenis_kelamin'] ?? '-',
-                    'kewarganegaraan' => $details['kewarganegaraan'] ?? 'Indonesia',
-                    'alamat'          => $details['alamat'] ?? '-',
-                    'agama'           => $details['agama'] ?? '-',
-                    'pekerjaan'       => $details['pekerjaan'] ?? '-',
-                    'pendidikan'      => $details['pendidikan'] ?? '-',
-                    'nama_ortu'       => $details['nama_ortu'] ?? '-',
-                    'ttd_nama'        => $finalTtdNama,
+                    'jenis_kelamin'   => $toTitle($details['jenis_kelamin'] ?? '-'),
+                    'kewarganegaraan' => $toTitle($details['kewarganegaraan'] ?? 'Indonesia'),
+                    'alamat'          => $toTitle($details['alamat'] ?? '-'),
+                    'agama'           => $toTitle($details['agama'] ?? '-'),
+                    'pekerjaan'       => $toTitle($details['pekerjaan'] ?? '-'),
+                    'pendidikan'      => $toTitle($details['pendidikan'] ?? '-'),
+                    'nama_ortu'       => $toTitle($details['nama_ortu'] ?? '-'),
+                    'ttd_nama'        => $toTitle($finalTtdNama),
                     'ttd_nip'         => $finalTtdNip,
-                    'ttd_jabatan'     => $finalTtdJabatan,
-                    'TTD_NAMA'        => $finalTtdNama,
-                    'TTD_NIP'         => $finalTtdNip,
-                    'TTD_JABATAN'     => $finalTtdJabatan,
-                    'TTD_PANGKAT'     => $ttdPangkat,
-                    'NAMA_INSTANSI'   => $instansiValue,
+                    'ttd_jabatan'     => $toTitle($finalTtdJabatan),
+                    'ttd_pangkat'     => $toTitle($ttdPangkat),
                 ];
-
-                $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $this->cleanNamaTerdakwa($row['nama_terdakwa']));
+                $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $dataRow['nama_terdakwa']);
                 $cleanName = substr($cleanName, 0, 50);
-                $fileNameP37 = "P37-{$cleanName}-{$fileDateStr}.docx";
-                
-                $this->generateDoc('template_p37.docx', $dataRow, $fileNameP37, $folderBackup, $generatedFiles);
+                $baseFileName = "P37-{$cleanName}-{$fileDateStr}";
+
+                // OPSI A: CETAK WORD
+                if ($outputFormat === 'word') {
+                    $fileNameP37 = $baseFileName . ".docx";
+                    $this->generateDoc('template_p37.docx', $dataRow, $fileNameP37, $folderBackup, $generatedFiles);
+                } 
+                // OPSI B: CETAK PDF
+                else {
+                    try {
+                        $html = view('App\Modules\Sidang\Views\pdf\template_p37', $dataRow);
+                        
+                        $mpdf = new Mpdf([
+                            'format' => [215, 330], // F4 / Folio
+                            'margin_left'   => 20,
+                            'margin_right'  => 15,
+                            'margin_top'    => 15,
+                            'margin_bottom' => 10
+                        ]);
+
+                        $mpdf->WriteHTML($html);
+                        $finalName = $baseFileName . '.pdf';
+                        $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalName;
+                        $mpdf->Output($saveP, 'F');
+                        $generatedFiles[$finalName] = $saveP;
+                    } catch (\Throwable $e) {
+                        return redirect()->back()->with('error', 'Gagal membuat PDF P37: ' . $e->getMessage());
+                    }
+                }
             }
         }
-
         // -----------------------------------------------------
         // GENERATE P-38 (HYBRID: WORD OR PDF)
         // -----------------------------------------------------

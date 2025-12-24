@@ -1,19 +1,61 @@
-/* RESET & BASE */
-html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family: 'Roboto', sans-serif; }
+/* ==================================================================== */
+/* --- 1. BASE & TYPOGRAPHY --- */
+/* ==================================================================== */
+html, body { 
+    height: 100%; 
+    margin: 0; 
+    padding: 0; 
+    overflow: hidden; 
+    font-family: 'Inter', 'Roboto', sans-serif; 
+    background-color: #0f172a;
+}
 
-/* BACKGROUND ANIMATION */
+/* ==================================================================== */
+/* --- 2. ANIMATED BACKGROUND (AURORA EFFECT) --- */
+/* ==================================================================== */
 .bg-container {
-    background-image: url(''); /* Bisa diisi URL background jika ada */
-    background-size: cover; 
-    background-position: center;
     width: 100vw; 
     height: 100vh; 
     position: relative;
+    background: radial-gradient(circle at top left, #1e293b, #0f172a);
+    overflow: hidden;
 }
+
+/* Bola-bola cahaya bergerak di belakang */
+.bg-shape {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    opacity: 0.6;
+    animation: floatShape 20s infinite alternate;
+}
+.shape-1 {
+    top: -10%; left: -10%; width: 500px; height: 500px;
+    background: #1d4ed8; /* Biru */
+    animation-delay: 0s;
+}
+.shape-2 {
+    bottom: -10%; right: -10%; width: 600px; height: 600px;
+    background: #0f766e; /* Hijau Teal */
+    animation-delay: -5s;
+}
+.shape-3 {
+    top: 40%; left: 40%; width: 300px; height: 300px;
+    background: #7e22ce; /* Ungu */
+    animation-delay: -10s;
+    opacity: 0.4;
+}
+
+@keyframes floatShape {
+    0% { transform: translate(0, 0) scale(1); }
+    100% { transform: translate(30px, 50px) scale(1.1); }
+}
+
 .bg-overlay {
-    background: rgba(15, 23, 42, 0.95); /* Lebih gelap dikit biar elegan */
-    width: 100%; 
-    height: 100%;
+    position: absolute;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(15, 23, 42, 0.6); /* Backdrop gelap transparan */
+    backdrop-filter: blur(20px); /* Efek blur kaca buram di background */
     display: flex; 
     flex-direction: column; 
     align-items: center; 
@@ -22,214 +64,114 @@ html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; font-family:
     overflow-y: auto;
 }
 
-/* CARD MENU STYLE */
+/* ==================================================================== */
+/* --- 3. GLASS CARD (HOLOGRAPHIC STYLE) --- */
+/* ==================================================================== */
 .card-menu {
     border-radius: 24px !important; 
-    border: 1px solid rgba(255,255,255,0.05);
+    background: rgba(255, 255, 255, 0.03) !important; /* Super transparan */
+    border: 1px solid rgba(255, 255, 255, 0.1) !important;
+    box-shadow: 0 4px 30px rgba(0, 0, 0, 0.3) !important;
     backdrop-filter: blur(10px); 
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); /* Bouncy effect */
-    cursor: pointer;
-}
-.card-menu:hover { 
-    transform: translateY(-10px); 
-    border-color: rgba(255,255,255,0.2); 
-    box-shadow: 0 20px 40px rgba(0,0,0,0.6) !important; 
+    -webkit-backdrop-filter: blur(10px);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    position: relative;
+    overflow: hidden;
 }
 
-/* ICON CIRCLE */
+/* Efek Kilau (Shine) saat Hover */
+.card-menu::before {
+    content: '';
+    position: absolute;
+    top: 0; left: -100%;
+    width: 50%; height: 100%;
+    background: linear-gradient(to right, transparent, rgba(255,255,255,0.1), transparent);
+    transform: skewX(-25deg);
+    transition: 0.5s;
+}
+.card-menu:hover::before {
+    left: 150%;
+}
+
+.card-menu:hover {
+    transform: translateY(-10px);
+    border-color: rgba(255, 255, 255, 0.4) !important;
+    box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), 
+                0 0 20px rgba(56, 189, 248, 0.2) !important; /* Glow Biru */
+}
+
+/* Icon Circle */
 .icon-circle {
-    width: 90px; 
-    height: 90px; 
-    border-radius: 50%; 
-    background: rgba(255,255,255,0.05);
-    display: flex; 
-    align-items: center; 
-    justify-content: center; 
-    margin: 0 auto 20px auto; 
+    transition: all 0.5s ease;
+    border: 1px solid rgba(255,255,255,0.1);
+}
+.card-menu:hover .icon-circle {
+    transform: scale(1.1);
+    background: rgba(255,255,255,0.1) !important;
+    box-shadow: 0 0 15px currentColor; /* Icon glowing sesuai warna text */
+}
+
+/* ==================================================================== */
+/* --- 4. TEXT & UTILS --- */
+/* ==================================================================== */
+.text-gradient-gold {
+    background: linear-gradient(to right, #f8fafc, #94a3b8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-shadow: 0 2px 10px rgba(255,255,255,0.1);
+}
+
+.text-gradient-title {
+    background: linear-gradient(to right, #38bdf8, #818cf8);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    font-weight: 800;
+}
+
+.btn-akses {
+    font-weight: 700;
+    letter-spacing: 1px;
+    border-radius: 50px;
+    text-transform: uppercase;
     transition: 0.3s;
 }
-.icon-circle .v-icon { 
-    font-family: 'Font Awesome 6 Free', sans-serif !important; 
-}
-.card-menu:hover .icon-circle { 
-    transform: scale(1.1) rotate(5deg); 
-    background: rgba(255,255,255,0.1); 
+.btn-akses:hover {
+    box-shadow: 0 0 15px rgba(56, 189, 248, 0.6);
 }
 
-/* TYPOGRAPHY */
-.menu-title { 
-    font-size: 1.4rem; 
-    font-weight: 900; 
-    letter-spacing: 1px; 
-    margin-bottom: 5px; 
-    text-transform: uppercase; 
+/* ==================================================================== */
+/* --- 5. ENTRANCE ANIMATION (MUNCUL DARI BAWAH) --- */
+/* ==================================================================== */
+.fade-up {
+    animation: fadeUp 0.8s ease-out forwards;
+    opacity: 0;
+    transform: translateY(30px);
 }
-.menu-desc { 
-    font-size: 0.85rem; 
-    color: #94a3b8; 
-    margin-bottom: 25px; 
-    min-height: 40px; 
-}
-.btn-akses { 
-    font-weight: 700; 
-    border-radius: 50px; 
-    padding: 0 30px !important; 
+.delay-1 { animation-delay: 0.2s; }
+.delay-2 { animation-delay: 0.4s; }
+.delay-3 { animation-delay: 0.6s; }
+
+@keyframes fadeUp {
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* FOOTER */
-.fixed-footer { 
-    position: absolute; 
-    bottom: 20px; 
-    left: 0; 
-    width: 100%; 
-    text-align: center; 
-    z-index: 10; 
+/* ==================================================================== */
+/* --- 6. RESPONSIVE --- */
+/* ==================================================================== */
+@media (max-width: 960px) {
+    .bg-overlay { justify-content: flex-start !important; padding-top: 60px; }
 }
-.footer-text {
-    color: #64748b; 
-    font-size: 0.85rem; 
-    font-weight: 500; 
-    letter-spacing: 2px; 
-    text-transform: uppercase;
-    border-top: 1px solid rgba(255,255,255,0.1); 
-    padding: 15px 30px 0; 
-    display: inline-block;
+@media (max-width: 600px) {
+    .bg-overlay { padding: 15px; padding-top: 30px; }
+    .card-menu { margin-bottom: 15px; }
+    .menu-title { font-size: 1.2rem !important; }
+    h1.text-h3 { font-size: 1.8rem !important; }
 }
 
-/* ========================================= */
-/* --- PRELOADER: CYBER OFFICIAL STYLE --- */
-/* ========================================= */
-
-#preloader {
-    position: fixed; 
-    top: 0; 
-    left: 0; 
-    width: 100%; 
-    height: 100%;
-    background: radial-gradient(circle at center, #1a1a1a 0%, #000000 100%); /* Radial Dark */
-    z-index: 99999;
-    display: flex; 
-    flex-direction: column; 
-    align-items: center; 
-    justify-content: center;
-    transition: opacity 0.8s ease-out, visibility 0.8s ease-out;
-}
-
-/* Wrapper Logo agar bisa dikasih efek cincin */
-.loader-wrapper {
-    position: relative;
-    width: 140px;
-    height: 140px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    margin-bottom: 25px;
-}
-
-/* Logo Utama */
-.logo-main {
-    width: 80px;
-    height: auto;
-    z-index: 2;
-    filter: drop-shadow(0 0 15px rgba(255, 215, 0, 0.3)); /* Glow Emas Halus */
-    animation: pulseGlow 2s infinite ease-in-out;
-}
-
-/* Cincin Luar (Emas - Kejaksaan) */
-.ring-one {
-    position: absolute;
-    width: 100%;
-    height: 100%;
-    border: 2px solid transparent;
-    border-top: 2px solid #FFC107; /* Warna Emas */
-    border-right: 2px solid #FFC107;
-    border-radius: 50%;
-    animation: spinRight 2s linear infinite;
-    box-shadow: 0 0 20px rgba(255, 193, 7, 0.2);
-}
-
-/* Cincin Dalam (Hijau - Kejaksaan) */
-.ring-two {
-    position: absolute;
-    width: 75%;
-    height: 75%;
-    border: 2px solid transparent;
-    border-bottom: 2px solid #4CAF50; /* Warna Hijau */
-    border-left: 2px solid #4CAF50;
-    border-radius: 50%;
-    animation: spinLeft 1.5s linear infinite;
-}
-
-/* Teks Loading */
-.loading-text {
-    font-family: 'Courier New', monospace; /* Font Tech */
-    color: #b0b0b0;
-    font-size: 0.85rem;
-    font-weight: 600;
-    letter-spacing: 4px;
-    text-transform: uppercase;
-    margin-bottom: 15px;
-    animation: blinkText 1.5s infinite;
-}
-
-/* Progress Bar Container */
-.loading-bar-container {
-    width: 200px;
-    height: 4px;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-    overflow: hidden;
-    position: relative;
-}
-
-/* Progress Bar Fill */
-.loading-bar-fill {
-    height: 100%;
-    background: linear-gradient(90deg, #FFC107, #4CAF50); /* Gradasi Emas ke Hijau */
-    width: 0%;
-    animation: loadProgress 2.5s ease-in-out forwards;
-    border-radius: 4px;
-    box-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
-}
-
-/* --- ANIMATIONS --- */
-@keyframes spinRight {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@keyframes spinLeft {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(-360deg); }
-}
-
-@keyframes pulseGlow {
-    0% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2)); }
-    50% { transform: scale(1.05); filter: drop-shadow(0 0 20px rgba(255, 215, 0, 0.5)); }
-    100% { transform: scale(1); filter: drop-shadow(0 0 10px rgba(255, 215, 0, 0.2)); }
-}
-
-@keyframes blinkText {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.5; }
-}
-
-@keyframes loadProgress {
-    0% { width: 0%; }
-    40% { width: 30%; }
-    70% { width: 80%; }
-    100% { width: 100%; }
-}
-
-/* ANIMATIONS */
-@keyframes pulseLogo { 
-    0% { transform: scale(1); opacity: 1; } 
-    50% { transform: scale(1.1); opacity: 0.8; } 
-    100% { transform: scale(1); opacity: 1; } 
-}
-@keyframes shake { 
-    0%, 100% { transform: translateX(0); } 
-    25% { transform: translateX(-5px); } 
-    75% { transform: translateX(5px); } 
-}
-.v-shake { animation: shake 0.3s; }
+        /* Tweak Tambahan untuk Mobile */
+@media (max-width: 600px) {
+            .menu-title { font-size: 1.1rem !important; }
+            .logo-img { max-width: 70px !important; }
+            /* Fix padding di HP biar ga terlalu mepet */
+            .container-wrapper { padding-top: 40px !important; padding-bottom: 20px !important; }
+        }

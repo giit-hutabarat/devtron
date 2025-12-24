@@ -27,13 +27,30 @@ $logo    = base_url() . "/" . $setting->info['logo'];
             <?= $this->include('layouts/partials/topbar') ?>
 
             <?= $this->setData(['logo_url' => $logo, 'app_name' => $appname])->include('layouts/partials/sidebar') ?>
+            
+            <v-navigation-drawer v-model="rightMenu" app right bottom temporary>
+                <template v-slot:prepend>
+                    <v-list-item><v-list-item-content><v-list-item-title>Pengaturan Tampilan</v-list-item-title></v-list-item-content></v-list-item>
+                </template>
+                <v-divider></v-divider>
+                <v-list-item>
+                    <v-list-item-avatar><v-icon>mdi-theme-light-dark</v-icon></v-list-item-avatar>
+                    <v-list-item-content>Tema {{themeText}}</v-list-item-content>
+                    <v-list-item-action><v-switch v-model="dark" inset @click="toggleTheme"></v-switch></v-list-item-action>
+                </v-list-item>
+                <v-list-item>
+                    <v-list-item-avatar><v-icon>mdi-earth</v-icon></v-list-item-avatar>
+                    <v-list-item-content>Bahasa</v-list-item-content>
+                    <v-list-item-action>
+                        <v-btn-toggle>
+                            <v-btn text small link href="<?= base_url('lang/id'); ?>">ID</v-btn>
+                            <v-btn text small link href="<?= base_url('lang/en'); ?>">EN</v-btn>
+                        </v-btn-toggle>
+                    </v-list-item-action>
+                </v-list-item>
+            </v-navigation-drawer>
 
-            <!-- 
-                [SARAN UX] Pindahkan fungsionalitas Pengaturan Tampilan (Tema) dan Bahasa 
-                ke dalam menu pengguna di dalam komponen 'layouts/partials/topbar' untuk akses yang lebih intuitif.
-            -->
-
-            <v-main class="white"> <!-- Ganti 'grey lighten-4' menjadi 'white' atau 'grey lighten-5' untuk tampilan lebih bersih -->
+            <v-main class="grey lighten-4">
                 <v-container class="pa-5" fluid>
                     <?= $this->renderSection('content') ?>
                 </v-container>
@@ -45,12 +62,6 @@ $logo    = base_url() . "/" . $setting->info['logo'];
                     <v-btn text v-bind="attrs" @click="snackbar = false">ok</v-btn>
                 </template>
             </v-snackbar>
-
-            <!-- 
-                [SARAN RESPONSIVE] Untuk tampilan mobile, pertimbangkan menggunakan v-bottom-navigation 
-                untuk menu utama yang dikontrol oleh Vue berdasarkan breakpoint layar (misal: v-if="$vuetify.breakpoint.smAndDown").
-            -->
-
         </v-app>
     </div>
     

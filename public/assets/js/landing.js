@@ -1,90 +1,101 @@
 /**
- * LANDING PAGE LOGIC
+ * LANDING PAGE LOGIC (Fixed & Optimized)
  * Menggunakan Vue.js 2.x & Vuetify
  */
 
-// 1. Handle Preloader (Vanilla JS)
+// A. Handle Preloader (Vanilla JS) - Jalan sebelum Vue siap
 window.addEventListener('load', function() {
     var preloader = document.getElementById('preloader');
     if(preloader) {
-        setTimeout(function() {
-            preloader.style.opacity = '0';
-            setTimeout(function() { preloader.style.display = 'none'; }, 800);
-        }, 800);
+        // Efek fade out halus
+        preloader.style.transition = 'opacity 0.5s ease';
+        preloader.style.opacity = '0';
+        setTimeout(function() { 
+            preloader.style.display = 'none'; 
+        }, 500);
     }
 });
 
-// 2. Vue Instance
+// B. Vue Instance
 new Vue({
     el: '#app',
     vuetify: new Vuetify({
-        icons: { iconfont: 'fa' },
+        icons: { iconfont: 'fa' }, // Pastikan FontAwesome aktif
     }),
     data: () => ({
-        // State Modal
+        // State Modal & Form
         modalAuth: false,
         valid: true, 
         loading: false, 
         showPass: false,
         
-        // Form Data
+        // Data Input
         loginUsername: "", 
         loginPassword: "", 
         errorMsg: "", 
         
-        // Rules
+        // Validasi Form
         rules: { 
             required: v => !!v || 'Wajib diisi.'
         }
     }),
     methods: {
-        // Proses Login Admin (Via Modal)
+        // 1. Proses Login Admin
+        // 1. Proses Login Admin
         loginProcess() {
             if (this.$refs.formLogin.validate()) {
                 this.loading = true; 
                 this.errorMsg = "";
                 
-                var formData = new FormData();
-                formData.append('username', this.loginUsername);
-                formData.append('password', this.loginPassword);
-                
-                // Gunakan appConfig dari PHP untuk URL
-                const url = appConfig.urls.loginAdmin;
+                var params = new URLSearchParams();
+                params.append('username', this.loginUsername);
+                params.append('password', this.loginPassword);
 
-                axios.post(url, formData)
+                if (typeof appConfig === 'undefined') {
+                    this.errorMsg = "Config Error: Refresh halaman.";
+                    this.loading = false;
+                    return;
+                }
+
+                axios.post(appConfig.urls.loginAdmin, params)
                     .then(res => {
-                        this.loading = false;
-                        if (res.data.status === true) {
-                            // Sukses: Redirect ke Dashboard
-                            window.location.href = appConfig.urls.dashboard;
+
+                        var isSuccess = (res.data.status === 'success' || res.data.success === true || res.data.message.includes("Berhasil"));
+                        if (isSuccess) {
+                            // SUKSES -> REDIRECT
+                            // Gunakan replace agar user gak bisa back ke login
+                            window.location.replace(appConfig.urls.dashboard);
                         } else {
-                            // Gagal: Tampilkan pesan & Shake effect
-                            this.errorMsg = res.data.message;
+                            // GAGAL -> Tampilkan Pesan
+                            this.loading = false;
+                            this.errorMsg = res.data.message || 'Login gagal. Cek username/password.';
                             this.triggerShake();
                         }
                     })
                     .catch(err => { 
+                        console.error("Login Error:", err);
                         this.loading = false; 
-                        this.errorMsg = "Gagal koneksi server. Cek internet anda."; 
-                    })
+                        
+                        // Cek apakah ada pesan error dari server (misal 401 Unauthorized)
+                        if (err.response && err.response.data && err.response.data.message) {
+                            this.errorMsg = err.response.data.message;
+                        } else {
+                            this.errorMsg = "Gagal koneksi server. Cek internet anda."; 
+                        }
+                        this.triggerShake();
+                    });
             }
         },
 
-        // Proses Logout (Admin & Sidang)
-        // Kita buat universal agar bisa dipakai keduanya
-        logoutUser: async function() {
-            try {
-                // Panggil logout API (menghancurkan session)
-                await axios.get(appConfig.urls.logout);
-                
-                // Apapun hasilnya, redirect ke halaman loading/home untuk refresh state
-                window.location.href = appConfig.urls.afterLogout;
-            } catch (error) {
-                window.location.href = appConfig.urls.afterLogout;
-            }
+        // 2. Proses Logout (Universal)
+        logoutUser: function() {
+            if (typeof appConfig === 'undefined') return;
+            
+            // Redirect langsung ke controller logout
+            window.location.href = appConfig.urls.logout;
         },
 
-        // Helper: Shake Effect untuk Modal Error
+        // 3. Helper: Efek Getar (Shake) saat Error
         triggerShake() {
             const card = document.querySelector('.v-dialog .v-card');
             if(card) {

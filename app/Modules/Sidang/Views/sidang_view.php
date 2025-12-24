@@ -72,11 +72,26 @@
                 <div class="filter-box">
                     <div class="row g-3"> 
                         <div class="col-12 col-md-4">
-                        <label class="form-label text-white fw-bold"><i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang</label>
+                            <label class="form-label text-white fw-bold mb-2">
+                                <i class="fa-solid fa-calendar-day me-2"></i> 1. Pilih Tanggal Sidang
+                            </label>
+                            
+                            <div class="d-flex gap-2 mb-2">
+                                <button type="button" class="btn btn-sm btn-outline-light flex-fill btn-quick-date" data-target="today">
+                                    <i class="fa-solid fa-calendar-check me-1"></i> Hari Ini
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-light flex-fill btn-quick-date" data-target="tomorrow">
+                                    <i class="fa-solid fa-calendar-plus me-1"></i> Besok
+                                </button>
+                            </div>
+
                             <div class="input-group shadow-sm">
-                                <input type="date" id="dateFilter" class="form-control fw-bold text-center" 
+                                <span class="input-group-text bg-white border-0 text-primary">
+                                    <i class="fa-solid fa-calendar"></i>
+                                </span>
+                                <input type="date" id="dateFilter" class="form-control fw-bold text-center border-0" 
                                     value="<?= date('Y-m-d') ?>" 
-                                    style="font-size: 1.1rem; letter-spacing: 1px;">
+                                    style="font-size: 1.05rem; letter-spacing: 0.5px; height: 45px;">
                             </div>
                         </div>
 

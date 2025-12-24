@@ -151,34 +151,49 @@ function loadData(selectedDateYMD) {
         });
 }
 
-// INISIALISASI DATATABLE
+// INISIALISASI DATATABLE (UI/UX PREMIUM)
 function initDataTable(dataSet) {
     table = $('#tableSidang').DataTable({
         "data": dataSet, 
-        "pageLength": 10, 
-        "lengthChange": false, 
-        "ordering": false, 
         "destroy": true, 
         "searching": true,
-        "responsive": true, 
-        "dom": '<"row mb-2"<"col-12 d-flex justify-content-end"f>>rt<"row"<"col-md-6"i><"col-md-6"p>>',
+        "responsive": true,
+        
+        // Aktifkan pilihan jumlah data
+        "lengthChange": true, 
+        "lengthMenu": [ [10, 25, 50, 100, -1], [10, 25, 50, 100, "Semua"] ], 
+        "pageLength": 10, 
+
+        // --- LAYOUTING DOM (RAHASIA TAMPILAN RAPI) ---
+        // Penjelasan:
+        // <"row..."  -> Baris pembungkus
+        // <"col-md-6..." l> -> Kolom Kiri: Length (Dropdown)
+        // <"col-md-6..." f> -> Kolom Kanan: Filter (Search) - Kita kasih class 'text-md-end' biar rata kanan
+"dom": '<"d-flex justify-content-between align-items-center mb-3"lf>rt<"row mt-3"<"col-md-6"i><"col-md-6"p>>',        
         "language": {
+            "lengthMenu": "_MENU_", // Kita singkat jadi cuma Dropdown saja, label "Tampilkan" kita taruh di CSS biar rapi
             "search": "", 
-            "searchPlaceholder": "Cari Data Terdakwa...",
-            "emptyTable": "Tidak ada data. Silakan pilih tanggal atau Sinkronisasi.", 
-            "zeroRecords": "Data tidak ditemukan."
+            "searchPlaceholder": "Ketik Nama / No Perkara...",
+            "info": "Menampilkan _START_ s/d _END_ dari _TOTAL_ data",
+            "infoEmpty": "0 data",
+            "infoFiltered": "(total _MAX_)",
+            "emptyTable": "Tidak ada data sidang.",
+            "zeroRecords": "Data tidak ditemukan.",
+            "paginate": {
+                "first": '<i class="fa-solid fa-angles-left"></i>',
+                "last": '<i class="fa-solid fa-angles-right"></i>',
+                "next": '<i class="fa-solid fa-angle-right"></i>',
+                "previous": '<i class="fa-solid fa-angle-left"></i>'
+            }
         },
         "columnDefs": [
             { "targets": [0, 4], "className": "text-center", "orderable": false }, 
             { "targets": 5, "visible": false }
         ],
-        // Responsive Mobile Label
         "createdRow": function (row, data, dataIndex) {
             var columns = ['Pilih', 'Nama Terdakwa', 'Nomor Perkara', 'Jaksa Penuntut Umum', 'Aksi'];
             $('td', row).each(function (i) {
-                if (columns[i]) {
-                    $(this).attr('data-label', columns[i]);
-                }
+                if (columns[i]) $(this).attr('data-label', columns[i]);
             });
         }
     });
@@ -395,6 +410,36 @@ $(document).ready(function() {
             myAppModal.hide();
             $(this).prop('disabled', false).html('<i class="fa-solid fa-print me-2"></i> LANJUTKAN CETAK');
         }, 500);
+    });
+
+    // --- FITUR BARU: TOMBOL TANGGAL CEPAT (UI/UX) ---
+    $('.btn-quick-date').on('click', function(e) {
+        e.preventDefault();
+        
+        var target = $(this).data('target'); // 'today' atau 'tomorrow'
+        var dateObj = new Date();
+
+        if (target === 'tomorrow') {
+            dateObj.setDate(dateObj.getDate() + 1);
+        }
+
+        // Format ke YYYY-MM-DD untuk input HTML5
+        var yyyy = dateObj.getFullYear();
+        var mm = String(dateObj.getMonth() + 1).padStart(2, '0');
+        var dd = String(dateObj.getDate()).padStart(2, '0');
+        var formattedDate = yyyy + '-' + mm + '-' + dd;
+
+        // Set value ke input & Trigger load data
+        $('#dateFilter').val(formattedDate).trigger('change');
+
+        // Efek visual tombol aktif
+        $('.btn-quick-date').removeClass('active btn-primary').addClass('btn-outline-light');
+        $(this).removeClass('btn-outline-light').addClass('active btn-primary');
+    });
+
+    // Reset tombol quick date kalau user ganti tanggal manual lewat kalender
+    $('#dateFilter').on('input', function() {
+        $('.btn-quick-date').removeClass('active btn-primary').addClass('btn-outline-light');
     });
 
     // F. UTILS LAINNYA

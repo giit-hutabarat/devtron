@@ -28,6 +28,25 @@
                     </v-list-item-content>
                 </v-list-item>
                 <v-divider></v-divider>
+
+                <v-subheader>Pengaturan</v-subheader>
+                <v-list-item>
+                    <v-list-item-icon><v-icon>mdi-theme-light-dark</v-icon></v-list-item-icon>
+                    <v-list-item-content><v-list-item-title>Tema {{themeText}}</v-list-item-title></v-list-item-content>
+                    <v-list-item-action><v-switch v-model="dark" inset @click="toggleTheme" class="ma-0 pa-0"></v-switch></v-list-item-action>
+                </v-list-item>
+                <v-list-item>
+                    <v-list-item-icon><v-icon>mdi-earth</v-icon></v-list-item-icon>
+                    <v-list-item-content><v-list-item-title>Bahasa</v-list-item-title></v-list-item-content>
+                    <v-list-item-action>
+                        <v-btn-toggle dense rounded>
+                            <v-btn small text link href="<?= base_url('lang/id'); ?>" class="<?= (session()->get('lang') ?? 'id') == 'id' ? 'v-btn--active' : '' ?>">ID</v-btn>
+                            <v-btn small text link href="<?= base_url('lang/en'); ?>" class="<?= (session()->get('lang') ?? 'id') == 'en' ? 'v-btn--active' : '' ?>">EN</v-btn>
+                        </v-btn-toggle>
+                    </v-list-item-action>
+                </v-list-item>
+                <v-divider></v-divider>
+
                 <v-list dense>
                     <v-list-item link href="<?= base_url(); ?>">
                         <v-list-item-icon><v-icon color="blue-grey">mdi-home</v-icon></v-list-item-icon>
@@ -41,9 +60,4 @@
             </v-card>
         </v-menu>
     <?php endif; ?>
-    
-    <v-divider class="mx-1" vertical></v-divider>
-    <v-btn icon @click.stop="rightMenu = !rightMenu">
-        <v-icon>mdi-cog-outline</v-icon>
-    </v-btn>
 </v-app-bar>

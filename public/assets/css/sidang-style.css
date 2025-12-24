@@ -568,3 +568,143 @@ div.dataTables_wrapper div.dataTables_filter {
   100% { transform: translateX(0); }
 }
 .shake-anim { animation: shake 0.3s; }
+/* --- CUSTOM DATATABLES UI (DARK THEME) --- */
+
+/* 1. Area Atas (Wrapper) */
+.dataTables_wrapper .row {
+    color: #e0e0e0; /* Warna teks umum */
+    font-size: 0.9rem;
+}
+
+/* 2. Dropdown Length (Kiri) */
+.dataTables_length label {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 500;
+}
+/* Trik menambahkan teks "Tampilkan" & "Data" secara CSS agar rapi */
+.dataTables_length label::before { content: "Tampilkan"; opacity: 0.8; }
+.dataTables_length label::after { content: ""; opacity: 0.8; }
+
+.dataTables_length select {
+    background-color: #2D2D2D !important; /* Warna Gelap (Senada Card) */
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 6px !important;
+    padding: 6px 30px 6px 10px !important; /* Padding kanan besar untuk panah */
+    font-size: 0.9rem !important;
+    cursor: pointer;
+    box-shadow: none !important;
+}
+
+/* 3. Input Search (Kanan) */
+.dataTables_filter {
+    text-align: right; /* Pastikan rata kanan */
+}
+.dataTables_filter label {
+    width: 100%;
+    max-width: 300px; /* Batasi lebar search box */
+    position: relative;
+    display: inline-block;
+}
+/* Menambahkan Ikon Kaca Pembesar di dalam Search Box */
+.dataTables_filter label::after {
+    content: "\f002"; /* Kode FontAwesome (Search) */
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    position: absolute;
+    right: 15px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #aaa;
+    pointer-events: none;
+}
+
+.dataTables_filter input {
+    width: 100% !important;
+    background-color: #2D2D2D !important;
+    color: #fff !important;
+    border: 1px solid #555 !important;
+    border-radius: 20px !important; /* Bentuk Pill (Rounded) */
+    padding: 8px 35px 8px 15px !important; /* Space untuk teks & ikon */
+    margin-left: 0 !important;
+    transition: all 0.3s ease;
+}
+.dataTables_filter input:focus {
+    background-color: #333 !important;
+    border-color: #1976D2 !important; /* Highlight Biru saat aktif */
+    box-shadow: 0 0 0 3px rgba(25, 118, 210, 0.2) !important;
+    outline: none;
+}
+
+/* 4. Info & Paginasi (Bawah) */
+.dataTables_info {
+    color: #aaa !important;
+    font-size: 0.85rem;
+    padding-top: 15px !important;
+}
+.dataTables_paginate {
+    padding-top: 10px !important;
+}
+
+/* ==================================================================== */
+/* --- RESPONSIVE NAVBAR (MOBILE CENTERED) --- */
+/* ==================================================================== */
+
+@media (max-width: 991px) {
+    /* 1. Ubah orientasi Container Navbar jadi Vertikal (Atas-Bawah) */
+    .navbar .container {
+        flex-direction: column !important;
+        text-align: center !important;
+        padding-top: 10px;
+        padding-bottom: 10px;
+    }
+
+    /* 2. Logo & Judul ke Tengah */
+    .navbar-brand {
+        margin-right: 0 !important;
+        margin-bottom: 15px; /* Jarak antara logo dan tombol menu */
+        justify-content: center;
+        width: 100%;
+        display: flex;
+        align-items: center;
+    }
+
+    /* 3. Container Menu (Dashboard/Logout) ke Tengah */
+    .navbar .ms-auto {
+        margin-left: 0 !important; /* Matikan auto margin kiri (biar gak nempel kanan) */
+        width: 100%;
+        justify-content: center !important; /* Tengahkan isi flex */
+        display: flex;
+    }
+    
+    /* 4. Penyesuaian Glass Button di Mobile */
+    .glass-nav-group {
+        width: auto;
+        padding: 8px 20px; /* Sedikit lebih lebar biar enak ditekan */
+    }
+}
+
+/* Tambahan: Penyesuaian Judul Header "CETAK BERKAS..." di Mobile */
+@media (max-width: 768px) {
+    .card-header-custom {
+        padding: 1.5rem 1rem !important;
+    }
+    
+    .card-header-custom .d-flex {
+        flex-direction: column !important;
+        text-align: center !important;
+    }
+
+    .card-header-custom h5 {
+        font-size: 1.1rem; /* Kecilin dikit font judul */
+        margin-bottom: 5px;
+    }
+
+    /* Tombol Sinkronisasi Full Width di HP */
+    #btnSyncData {
+        width: 100% !important;
+        margin-top: 15px;
+    }
+}

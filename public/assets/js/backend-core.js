@@ -5,10 +5,6 @@
 
 // 1. Computed Properties Global
 window.computedVue = {
-    mini: {
-        get() { return this.$vuetify.breakpoint.xsOnly || this.toggleMini; },
-        set(value) { this.toggleMini = value; }
-    },
     isMobile() {
         if (this.$vuetify.breakpoint.xsOnly) return this.sidebarMenu = false;
     },
@@ -31,15 +27,23 @@ window.mountedVue = function() {
         this.$vuetify.theme.dark = false; // Default preference
         localStorage.setItem("dark_theme", "false");
     }
+
+    const preloader = document.querySelector('.preloader');
+    if(preloader) {
+        setTimeout(() => {
+            preloader.classList.add('fade-out');
+        }, 100);
+    }
+
 };
 
 window.watchVue = {};
 
 // 3. Data Global
 window.dataVue = {
-    sidebarMenu: true,
+    sidebarMenu: null,
     rightMenu: false,
-    toggleMini: false,
+    mini: true, // Default state untuk sidebar mini (hoverable)
     dark: false,
     group: null,
     search: '',
@@ -92,8 +96,8 @@ function initVueApp() {
     new Vue({
         el: '#app',
         vuetify: new Vuetify(),
-        computed: window.computedVue,
         data: window.dataVue,
+        computed: window.computedVue,
         mounted: window.mountedVue,
         created: window.createdVue || window.defaultCreatedVue, 
         watch: window.watchVue,

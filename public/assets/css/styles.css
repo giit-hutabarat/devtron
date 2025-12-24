@@ -1,55 +1,79 @@
-/* width */
+/* === PRELOADER TRANSITION === */
+.preloader {
+  transition: opacity 0.5s ease-in-out, visibility 0.5s ease-in-out;
+}
+
+.preloader.fade-out {
+  opacity: 0;
+  visibility: hidden;
+}
+
+/* === SCROLLBAR MODERN === */
 ::-webkit-scrollbar {
-  width: 4px;
+  width: 6px; /* Thinner scrollbar */
+  height: 6px;
 }
 
-/* Track */
 ::-webkit-scrollbar-track {
-  background: #E0E0E0;
+  background: transparent; /* Make track invisible */
 }
 
-/* Handle */
 ::-webkit-scrollbar-thumb {
-  background: rgba(117, 117, 117, 0.7);
+  background: #BDBDBD; /* Lighter grey */
+  border-radius: 10px; /* Rounded handle */
 }
 
-/* Handle on hover */
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(117, 117, 117, 1);
+  background: #757575; /* Darker on hover */
 }
 
+/* === GENERAL & RESET === */
 html {
-  height: 100%;
-  width: 100%;
-  overflow: auto !important;
+  /* Let Vuetify handle overflow, but ensure vertical scrollbar is present if needed */
+  overflow-y: auto;
 }
 
-#app {
-  width: 100%;
-  height: 100%;
-  overflow-y: auto !important;
+/* Smooth theme transition */
+.v-application {
+  transition: background-color 0.3s ease-in-out;
 }
 
 .theme--light.v-application {
   background: none;
 }
 
-#home .v-parallax__image-container {
-  display: none;
+/* === VUETIFY COMPONENT OVERRIDES === */
+
+/* Smoother sidebar transition for our hover effect */
+.v-navigation-drawer {
+    transition: width 0.2s cubic-bezier(0.4, 0, 0.2, 1), transform 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
 }
 
+/* Data Table Polish */
 .v-data-table>.v-data-table__wrapper>table>thead>tr>th {
   font-weight: 600;
-  font-size: 14px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+  font-size: 13px !important; /* Slightly smaller for a cleaner look */
+  color: #616161 !important; /* Softer color for header text */
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
 }
 
 .v-data-table>.v-data-table__wrapper>table>tbody>tr>td {
-  font-weight: normal;
   font-size: 14px;
-  padding-top: 10px;
-  padding-bottom: 10px;
+}
+
+/* Add subtle hover effect to table rows */
+.v-data-table>.v-data-table__wrapper>table>tbody>tr:hover:not(.v-data-table__expanded__content):not(.v-data-table__empty-wrapper) {
+    background: #F5F5F5 !important;
+}
+
+.theme--dark .v-data-table>.v-data-table__wrapper>table>tbody>tr:hover:not(.v-data-table__expanded__content):not(.v-data-table__empty-wrapper) {
+    background: #424242 !important;
+}
+
+/* === UTILITIES & LANDING PAGE STYLES === */
+#home .v-parallax__image-container {
+  display: none;
 }
 
 .judul-home {

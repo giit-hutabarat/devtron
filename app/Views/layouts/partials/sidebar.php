@@ -1,20 +1,26 @@
 <?php $uri = service('uri'); ?>
-<v-navigation-drawer color="blue-grey darken-3" dark v-model="sidebarMenu" app floating :permanent="sidebarMenu" :mini-variant.sync="mini" v-if="!isMobile" class="elevation-3">
-    <v-list color="blue-grey darken-3" dense>
-        <v-list-item>
-            <v-list-item-action>
-                <v-icon @click.stop="toggleMini = !toggleMini">mdi-chevron-left</v-icon>
-            </v-list-item-action>
-            <v-list-item-content>
-                <v-list-item-title class="text-h6">
-                    <img src="<?= $logo_url ?>" alt="<?= $app_name ?>" height="32" class="mr-2" style="vertical-align: middle;">
-                    <span v-if="!mini">TRON</span>
-                </v-list-item-title>
-            </v-list-item-content>  
-        </v-list-item>
-    </v-list>
+<!-- 
+    [SARAN UI/UX] Sidebar dibuat hoverable pada layar besar (lgAndUp) dan menjadi drawer sementara pada layar kecil.
+    Pastikan untuk menginisialisasi 'mini: true' di data Vue Anda (misal: di file backend-core.js).
+-->
+<v-navigation-drawer
+    color="blue-grey darken-3"
+    dark
+    v-model="sidebarMenu"
+    app
+    floating
+    :permanent="$vuetify.breakpoint.lgAndUp"
+    :mini-variant.sync="mini"
+    @mouseenter="mini = false"
+    @mouseleave="mini = true"
+    class="elevation-3"
+>
+    <v-list-item class="px-2 pt-1">
+        <v-list-item-avatar><v-img src="<?= $logo_url ?>" alt="<?= $app_name ?>"></v-img></v-list-item-avatar>
+        <v-list-item-title class="text-h6 font-weight-light">TRON</v-list-item-title>
+    </v-list-item>
     <v-divider></v-divider>
-    
+
     <v-list nav dense> 
         <v-list-item link href="<?= base_url('display'); ?>" target="_blank">
             <v-list-item-icon><v-icon>mdi-arrow-right</v-icon></v-list-item-icon>
@@ -69,13 +75,9 @@
         <?php endif; ?>
     </v-list>
 
-    <template v-slot:append>
-        <v-divider></v-divider>
-        <div class="text-center">
-            <v-list-item dense>
-                <v-list-item-icon style="font-size:12px;" v-if="toggleMini">&copy; <?= date('Y') ?></v-list-item-icon>
-                <v-list-item-content style="font-size:12px;" v-else>&copy; <?= date('Y') ?> Tron</v-list-item-content>
-            </v-list-item>
-        </div>
-    </template>
+     <template v-slot:append>
+         <div class="pa-2">
+             <div v-if="!mini" class="text-center text-caption">&copy; <?= date('Y') ?> Tron</div>
+         </div>
+     </template>
 </v-navigation-drawer>
