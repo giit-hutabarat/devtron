@@ -50,11 +50,33 @@
             width: 100%;      
         }
 
-        /* TABEL DATA */
-        .data-table { width: 100%; border-collapse: collapse; margin: 5px 0; }
-        .data-table th, .data-table td { border: 1px solid black; padding: 4px; vertical-align: top; font-size: 10pt; }
-        .data-table th { text-align: center; font-weight: bold; background-color: #ffffff; }
-        
+        /* --- UPDATE PADA CSS DATA-TABLE --- */
+        .data-table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin: 5px 0; 
+            table-layout: fixed; /* Mengunci lebar kolom */
+        }
+
+        .data-table th, .data-table td { 
+            border: 1px solid black; 
+            padding: 4px 2px; 
+            vertical-align: middle; 
+            font-size: 9pt; /* Ukuran font diperkecil sedikit agar muat sebaris */
+            overflow: hidden; 
+        }
+
+        /* KOREKSI: Paksa teks tetap satu baris */
+        .data-table td { 
+            white-space: nowrap; 
+            text-overflow: clip; 
+        }
+
+        .data-table th { 
+            text-align: center; 
+            font-weight: bold; 
+            background-color: #ffffff; 
+        }        
         /* TTD */
         .ttd-wrapper { width: 100%; margin-top: 15px; page-break-inside: avoid; }
         .ttd-table { width: 100%; }
@@ -109,25 +131,26 @@
         </p>
     </div>
 
-    <table class="data-table">
-        <thead>
-            <tr>
-                <th width="5%">No</th><th width="35%">Nama Lengkap</th><th width="30%">Jaksa P.U.</th><th width="30%">Agenda</th>
-            </tr>
-        </thead>
-        <tbody>
-            <?php if(!empty($data_tabel)): foreach($data_tabel as $row): ?>
-            <tr>
-                <td class="text-center"><?= $row['no'] ?></td>
-                <td class="text-bold uppercase"><?= $row['nama_terdakwa'] ?></td>
-                <td class="text-center"><?= $row['jpu'] ?></td>
-                <td class="text-center"><?= $row['agenda'] ?></td>
-            </tr>
-            <?php endforeach; else: ?>
-            <tr><td colspan="4" class="text-center">- Tidak ada data -</td></tr>
-            <?php endif; ?>
-        </tbody>
-    </table><br>
+<table class="data-table">
+    <thead>
+        <tr>
+            <th width="5%">No</th>
+            <th width="30%">Nama Lengkap</th> <th width="35%">Jaksa P.U.</th>   <th width="30%">Agenda</th>
+        </tr>
+    </thead>
+    <tbody>
+        <?php if(!empty($data_tabel)): foreach($data_tabel as $row): ?>
+        <tr>
+            <td class="text-center"><?= $row['no'] ?></td>
+            <td class="text-bold"><?= $row['nama_terdakwa'] ?></td>
+            <td class="text-center"><?= $row['jpu'] ?></td>
+            <td class="text-center"><?= $row['agenda'] ?></td>
+        </tr>
+        <?php endforeach; else: ?>
+        <tr><td colspan="4" class="text-center">- Tidak ada data -</td></tr>
+        <?php endif; ?>
+    </tbody>
+</table><br>
 
     <div class="content">
         <p class="text-justify indent" style="margin-top: 5px;">
@@ -141,7 +164,7 @@
             <tr>
                 <td class="ttd-col-kiri"></td>
                 <td class="ttd-col-kanan">
-                    An. KEPALA <?= strtoupper($nama_instansi) ?><br>
+                    An. Kepala <?= strtoupper($nama_instansi) ?><br>
                     <?= strtoupper($ttd_jabatan) ?>,
                     
                     <div style="margin: 5px 0;">

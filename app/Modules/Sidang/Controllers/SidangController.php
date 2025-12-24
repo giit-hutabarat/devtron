@@ -481,6 +481,16 @@ class SidangController extends BaseController
         $toTitle = function($str) {
             return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
         };
+        // Helper khusus Nama + Gelar (Aaa Bbb, S.H.) [cite: 1]
+        $formatNamaGelar = function($str) use ($toTitle) {
+            if (empty($str)) return '-';
+            // Cek jika ada koma (biasanya pemisah gelar)
+            if (strpos($str, ',') !== false) {
+                $parts = explode(',', $str, 2);
+                return $toTitle($parts[0]) . ', ' . strtoupper(trim($parts[1]));
+            }
+            return $toTitle($str);
+        };
 
         // -----------------------------------------------------
         // GENERATE P-37 (HYBRID: WORD ATAU PDF)
@@ -515,8 +525,8 @@ class SidangController extends BaseController
                     'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])),
 
                     // KOREKSI 1: JPU & TTD Nama dipaksa UPPERCASE untuk mengakomodir gelar pendidikan
-                    'jpu'             => strtoupper($row['jpu']), 
-                    'ttd_nama'        => strtoupper($rawTtdNama),
+                    'jpu'             => $formatNamaGelar($row['jpu']), 
+                    'ttd_nama'        => $formatNamaGelar($rawTtdNama),
 
                     'nama_hari'       => $namaHari,        
                     'hari_sidang'     => $tglSidangIndo,   
