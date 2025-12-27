@@ -1,10 +1,22 @@
-<?php 
-// SETTING HEADER NO-CACHE (SECURITY)
-// Mencegah halaman ini disimpan di browser history
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-header("Cache-Control: post-check=0, pre-check=0", false);
-header("Pragma: no-cache");
+<?php
+/**
+ * SECURITY HEADERS (Server-Side)
+ * Mencegah Clickjacking dan memastikan QR Code tidak tersimpan di Cache browser
+ */
+if (!headers_sent()) {
+    // 1. Anti-Clickjacking: Melarang halaman ini dibuka di dalam iframe
+    header("X-Frame-Options: DENY");
 
+    // 2. Cache Control: QR Code bersifat rahasia, jangan sampai tersimpan di history/cache
+    header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
+    header("Cache-Control: post-check=0, pre-check=0", false);
+    header("Pragma: no-cache");
+    header("Expires: Mon, 26 Jul 1997 05:00:00 GMT"); // Tanggal lampau agar lgsg expired
+
+    // 3. Tambahan XSS Protection
+    header("X-Content-Type-Options: nosniff");
+    header("X-XSS-Protection: 1; mode=block");
+}
 $baseUrl = site_url();
 ?>
 <!DOCTYPE html>

@@ -38,8 +38,9 @@
                         </v-col>
                         <v-col cols="12" md="3">
                             <v-btn
-                                color="success" dark block large
+                                :disabled="loading === 'add'"
                                 :loading="loading === 'add'"
+                                color="success" dark block large
                                 type="submit"
                                 class="rounded-pill elevation-2"
                             >

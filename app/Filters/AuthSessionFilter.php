@@ -16,30 +16,28 @@ class AuthSessionFilter implements FilterInterface
      * Jalankan sebelum Controller di eksekusi.
      */
     public function before(RequestInterface $request, $arguments = null)
-    {
-        // 1. Cek apakah session service tersedia dan sudah ada sesi login
-        if (! service('session')->get('isLoggedIn')) {
-            
-            // 2. Jika tidak terotentikasi, kembalikan respons 401 Unauthorized.
-            // Ini penting untuk API (yang tidak mengalihkan ke halaman login)
+{
+    if (!session()->get('isLoggedIn')) {
+        
+        // --- KUSTOMISASI DI SINI ---
+        
+        // Cek apakah request mengharapkan JSON (misal dari Axios/Fetch)
+        if (strpos($request->getHeaderLine('Accept'), 'application/json') !== false || $request->isAJAX()) {
             $response = service('response');
             
-            // Mengatur status code 401
-            $response->setStatusCode(ResponseInterface::HTTP_UNAUTHORIZED); 
-            
-            // Mengembalikan respons JSON agar mudah dihandle oleh frontend/client
-            $response->setJSON([
-                'status' => 401,
-                'error'  => 'Unauthorized',
-                'messages' => 'Akses ditolak. Anda harus login untuk mengakses sumber daya ini.'
-            ]);
-            
-            return $response;
+            return $response->setJSON([
+                'status'   => false,
+                'error'    => 'AUTH_REQUIRED',
+                'message'  => 'Waduh! Sesi login lo udah abis bro. Silakan login ulang ke Dashboard Tron.',
+                // Opsional: kirim hash baru biar axios nggak crash
+                'csrf_hash' => csrf_hash() 
+            ])->setStatusCode(401);
         }
-        
-        // 3. Jika session ditemukan (isLoggedIn = TRUE), lanjutkan request
-        return $request;
+
+        // Jika akses lewat browser biasa, lempar ke halaman login
+        return redirect()->to(site_url('login'))->with('error', 'Silakan login terlebih dahulu.');
     }
+}
 
     /**
      * Jalankan setelah Controller di eksekusi.

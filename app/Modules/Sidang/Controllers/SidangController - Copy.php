@@ -73,11 +73,7 @@ class SidangController extends BaseController
     // --- AUTH & LOGIN ---
     public function accessForm()
     {
- 
         if (session()->get('isLoggedInSidang')) return redirect()->to(site_url('sidang'));
-
-        // Panggil proteksi sebelum render view
-        $this->setSecureHeaders();
         
         $namaInstansi = 'NAMA INSTANSI DEFAULT';
         $logoPath = 'images/logo_kejaksaan.png';
@@ -233,25 +229,31 @@ class SidangController extends BaseController
                 }
             }
         }
-        
+
+        // 2. SNAPSHOT: HAPUS DATA LAMA
+        $this->sidangModel->where('tanggal_sidang', $tglSidang)->delete();
+
+        // 3. AMBIL DATA MASTER
         try {
-        // 2. AMBIL DATA DARI GOOGLE SHEETS DULU (Sebelum transaksi DB dimulai)
-        $masterSheet = $this->fetchSheet('DATA_MASTER!A2:Z');
-        
-        if (empty($masterSheet)) {
-            return redirect()->to('sidang')->with('error', "Gagal Sinkron: Data Master di Google Sheets kosong.");
+            $masterSheet = $this->fetchSheet('DATA_MASTER!A2:Z'); 
+        } catch (\Throwable $e) {
+            return redirect()->to('sidang')->with('error', "Gagal koneksi Google Sheet: " . $e->getMessage());
         }
 
-        // 3. LOGIKA FILTER DATA (Pindahkan logika filter ke sini agar transaksi DB sesingkat mungkin)
+        // Mapping Data Master
         $masterMap = [];
         foreach ($masterSheet as $rowM) {
             if(isset($rowM[0]) && !empty($rowM[0])) {
-                $masterMap[trim($rowM[0])] = $rowM;
+                $kunci = trim($rowM[0]); 
+                $masterMap[$kunci] = $rowM;
             }
         }
 
+        $countInsert = 0;
+        $processedPerkara = [];
         $sourceData = [];
-        $srcLabel = "Data Master";
+        $srcLabel = "";
+
         // 4. LOGIKA PENCARIAN
         
         // OPSI A: Cek Sheet Harian (Jika tanggal target = hari ini)
@@ -359,33 +361,25 @@ class SidangController extends BaseController
             }
         }
 
-        // 4. EKSEKUSI DATABASE DENGAN TRANSAKSI
-        $db = \Config\Database::connect();
-        $db->transStart(); 
-
-        // Snapshot: Hapus data lama untuk tanggal spesifik
-        $this->sidangModel->where('tanggal_sidang', $tglSidang)->delete();
-
-        $countInsert = 0;
-        $processedPerkara = [];
-
+        // 5. INSERT KE DATABASE
         foreach ($sourceData as $data) {
             $noPerkara = $data['no_perkara'];
-            if (empty($noPerkara) || in_array($noPerkara, $processedPerkara)) continue;
+            if (empty($noPerkara)) continue;
+            if (in_array($noPerkara, $processedPerkara)) continue;
 
-            // 1. Ambil nama asli dan bersihkan
-            $namaMentah = $data['nama_raw']; // Nama asli dari Sheet (Contoh: MUHAMMAD NA'IM Bin Siku.)
-            $namaBersih = $this->cleanNamaTerdakwa($namaMentah); // Nama hasil filter (Contoh: Muhammad Na'im)
-
+            $nama = $this->cleanNamaTerdakwa($data['nama_raw']);
             $rowM = $masterMap[$noPerkara] ?? [];
             
-            // Logic TTL
             $ttlRaw = $rowM[10] ?? null; 
             $tempatLahir = '-'; $tglLahir = '-';
-            if ($ttlRaw && strpos($ttlRaw, ',') !== false) {
-                $parts = explode(',', $ttlRaw, 2); 
-                $tempatLahir = trim($parts[0]);
-                $tglLahir = trim($parts[1]);
+            if ($ttlRaw) {
+                if (strpos($ttlRaw, ',') !== false) {
+                    $parts = explode(',', $ttlRaw, 2); 
+                    $tempatLahir = trim($parts[0]);
+                    $tglLahir = trim($parts[1]);
+                } else {
+                    $tempatLahir = $ttlRaw;
+                }
             }
 
             $dataFull = [
@@ -404,35 +398,22 @@ class SidangController extends BaseController
                 'status_sidang'   => $data['status'],
             ];
 
-            $this->sidangModel->insert([
+            $saveData = [
                 'tanggal_sidang' => $tglSidang, 
                 'nomor_perkara'  => $noPerkara,
-                'nama_asli'      => $namaMentah, // KOLOM BARU: Menyimpan data mentah dari Sheet
-                'nama_terdakwa'  => $namaBersih, // Tetap simpan yang bersih untuk fungsi lainnya
+                'nama_terdakwa'  => $nama, 
                 'jpu'            => $data['jpu'],
                 'data_full'      => json_encode($dataFull), 
-            ]);
+            ];
 
+            $this->sidangModel->insert($saveData);
             $processedPerkara[] = $noPerkara;
             $countInsert++;
         }
 
-        $db->transComplete(); 
-
-        if ($db->transStatus() === FALSE) {
-            return redirect()->to('sidang')->with('error', "Gagal sinkronisasi ke database lokal.");
-        }
-
         $tglIndoLabel = date('d-m-Y', strtotime($tglSidang));
         return redirect()->to('sidang')->with('success', "Sinkronisasi Selesai ($srcLabel). Tanggal: $tglIndoLabel | Data Masuk: $countInsert");
-
-    } catch (\Throwable $e) {
-        // Rollback otomatis ditangani transComplete, tapi kita pastikan di sini
-        if (isset($db) && $db->transStatus() === FALSE) $db->transRollback();
-        return redirect()->to('sidang')->with('error', "Sistem Error: " . $e->getMessage());
     }
-}
-
 
     // ==========================================================
     // CORE LOGIC: PROSES CETAK (WORD & PDF)
@@ -511,55 +492,42 @@ class SidangController extends BaseController
             return $toTitle($str);
         };
 
-        // Helper untuk memproses teks pendidikan
-        $formatPendidikan = function($str) {
-            if (empty($str)) return '-';
-            
-            // Pattern untuk mencari kata SD, SMP, SMA, atau SLTA (case insensitive)
-            $pattern = '/\b(SD|SMP|SMA|SLTA)\b/i';
-            
-            // Jika mengandung salah satu kata di atas, buat kapital semua
-            if (preg_match($pattern, $str)) {
-                return strtoupper(trim($str));
-            }
-            
-            // Jika tidak (misal: S1 Hukum, Diploma, dll), gunakan format Title Case
-            return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
-        };
-
-      // -----------------------------------------------------
+        // -----------------------------------------------------
         // GENERATE P-37 (HYBRID: WORD ATAU PDF)
         // -----------------------------------------------------
         if (is_array($docTypes) && in_array('p37', $docTypes)) {
             foreach ($targetData as $row) {
                 $details = json_decode($row['data_full'], true);
                 
-                // Logika Waktu
+                // Logika Nama Hari & Tanggal Sidang Indo
                 $timestampSidang = strtotime($row['tanggal_sidang']);
-                $hariArr = ['Sunday'=>'Senin','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+                $hariArr = [
+                    'Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa', 
+                    'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'
+                ];
                 $namaHari = $hariArr[date('l', $timestampSidang)];
-                $tglSidangIndo = $this->formatTglSaja($row['tanggal_sidang']);
+                $tglSidangIndo = $this->formatTglSaja($row['tanggal_sidang']); // Contoh: 24 Desember 2025
 
-                // Penentuan Tanda Tangan (Gunakan Nama Kapital Sesuai Perja 8/2019)
-                $finalTtdNama = !empty($ttdNama) ? strtoupper($ttdNama) : strtoupper($row['jpu']);
-                $finalTtdNip = !empty($ttdNip) ? $ttdNip : '';
-                $finalTtdJabatan = !empty($ttdJabatan) ? $toTitle($ttdJabatan) : 'Kasi Pidum';
+                // Penentuan Tanda Tangan
+                $finalTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
+                $finalTtdNip  = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
+                $finalTtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM';
 
-                // Mapping Data Sesuai Kebutuhan Template PDF & Word
-                // --- GANTI BARIS 179 - 204 DENGAN INI ---
+                // Penentuan Tanda Tangan
+                $rawTtdNama = !empty($ttdNama) ? $ttdNama : $row['jpu'];
+
                 $dataRow = [
-                    // 1. Variabel untuk Kalimat Narasi (Wajib Kapital Seluruhnya & Tanpa Filter)
-                    'nama_lengkap_raw' => $row['nama_asli'] ?? $row['nama_terdakwa'],
-
-                    // 2. Variabel untuk Tabel Identitas (Bersih & Rapi)
-                    'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])),
-                    
+                    // Ubah strtoupper menjadi $toTitle
                     'nama_instansi'   => $toTitle($customInstansi), 
                     'kota_surat'      => $toTitle($customKota),
                     'tanggal_surat'   => $this->formatTglSaja(date('Y-m-d')),
                     'nomor_perkara'   => $row['nomor_perkara'],
+                    'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])),
+
+                    // KOREKSI 1: JPU & TTD Nama dipaksa UPPERCASE untuk mengakomodir gelar pendidikan
                     'jpu'             => $formatNamaGelar($row['jpu']), 
-                    'ttd_nama'        => strtoupper($finalTtdNama), 
+                    'ttd_nama'        => $formatNamaGelar($rawTtdNama),
+
                     'nama_hari'       => $namaHari,        
                     'hari_sidang'     => $tglSidangIndo,   
                     'jenis_perkara'   => $toTitle($details['jenis_perkara'] ?? 'Pidana Umum'),
@@ -572,29 +540,33 @@ class SidangController extends BaseController
                     'alamat'          => $toTitle($details['alamat'] ?? '-'),
                     'agama'           => $toTitle($details['agama'] ?? '-'),
                     'pekerjaan'       => $toTitle($details['pekerjaan'] ?? '-'),
-                    'pendidikan'      => $details['pendidikan'] ?? '-',
+                    'pendidikan'      => $toTitle($details['pendidikan'] ?? '-'),
                     'nama_ortu'       => $toTitle($details['nama_ortu'] ?? '-'),
+                    'ttd_nama'        => $toTitle($finalTtdNama),
                     'ttd_nip'         => $finalTtdNip,
                     'ttd_jabatan'     => $toTitle($finalTtdJabatan),
-                    'ttd_pangkat'     => $toTitle($ttdPangkat) ?: '',
+                    'ttd_pangkat'     => $toTitle($ttdPangkat),
                 ];
+                $cleanName = preg_replace('/[^A-Za-z0-9 \-]/', '', $dataRow['nama_terdakwa']);
+                $cleanName = substr($cleanName, 0, 50);
+                $baseFileName = "P37-{$cleanName}-{$fileDateStr}";
 
-                // Sanitasi Nama File agar tidak corrupt
-                $cleanName = preg_replace('/[^A-Za-z0-9]/', '_', $this->cleanNamaTerdakwa($row['nama_terdakwa']));
-                $cleanName = substr($cleanName, 0, 30);
-                $baseFileName = "P37_{$cleanName}_{$fileDateStr}";
-
+                // OPSI A: CETAK WORD
                 if ($outputFormat === 'word') {
                     $fileNameP37 = $baseFileName . ".docx";
                     $this->generateDoc('template_p37.docx', $dataRow, $fileNameP37, $folderBackup, $generatedFiles);
-                } else {
+                } 
+                // OPSI B: CETAK PDF
+                else {
                     try {
-                        // Load View PDF
                         $html = view('App\Modules\Sidang\Views\pdf\template_p37', $dataRow);
                         
-                        $mpdf = new \Mpdf\Mpdf([
-                            'format' => [215, 330], // F4
-                            'margin_left' => 20, 'margin_right' => 15, 'margin_top' => 15, 'margin_bottom' => 10
+                        $mpdf = new Mpdf([
+                            'format' => [215, 330], // F4 / Folio
+                            'margin_left'   => 20,
+                            'margin_right'  => 15,
+                            'margin_top'    => 15,
+                            'margin_bottom' => 10
                         ]);
 
                         $mpdf->WriteHTML($html);
@@ -603,7 +575,6 @@ class SidangController extends BaseController
                         $mpdf->Output($saveP, 'F');
                         $generatedFiles[$finalName] = $saveP;
                     } catch (\Throwable $e) {
-                        log_message('error', 'PDF Error: ' . $e->getMessage());
                         return redirect()->back()->with('error', 'Gagal membuat PDF P37: ' . $e->getMessage());
                     }
                 }
@@ -615,7 +586,7 @@ class SidangController extends BaseController
         if (is_array($docTypes) && in_array('p38', $docTypes)) {
             
             $firstRow = $targetData[0];
-            $p38Instansi   = $customInstansi;
+            $p38Instansi   = strtoupper($customInstansi);
             $p38Kota       = $customKota;
             $p38TglSurat   = $this->formatTglSaja(date('Y-m-d'));
             
@@ -627,8 +598,8 @@ class SidangController extends BaseController
             $tanggalSaja    = date('d', $timestampSidang) . ' ' . $bulanArr[(int)date('m', $timestampSidang)] . ' ' . date('Y', $timestampSidang);
             
             $p38TtdNama    = !empty($ttdNama) ? $ttdNama : $firstRow['jpu']; 
-            $p38TtdNip     = !empty($ttdNip) ? $ttdNip : '';
-            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'Kasi Pidum';
+            $p38TtdNip     = !empty($ttdNip) ? $ttdNip : (session()->get('sidang_nip') ?? '-');
+            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'PENUNTUT UMUM';
             $p38TtdPangkat = !empty($ttdPangkat) ? $ttdPangkat : '-';
             
             $namaTerdakwaPertama = $this->cleanNamaTerdakwa($firstRow['nama_terdakwa']);
@@ -649,7 +620,6 @@ class SidangController extends BaseController
                         'status_sidang' => $det['status_sidang'] ?? '-',
                         'jenis_perkara' => $det['jenis_perkara'] ?? '-',
                         'agenda'        => $det['agenda_raw'] ?? '-'
-                        
                     ];
                 }
 
@@ -831,20 +801,6 @@ class SidangController extends BaseController
         return date('d', $timestamp) . ' ' . $bulan[(int)date('m', $timestamp)] . ' ' . date('Y', $timestamp);
     }
 
-    // Tambahkan di bagian atas method atau buat method private baru
-    private function setSecureHeaders()
-    {
-        // Anti-Clickjacking
-        $this->response->setHeader('X-Frame-Options', 'DENY');
-        
-        // Cache Control agar data OTP/NIP tidak tersimpan di history browser
-        $this->response->setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-        $this->response->setHeader('Pragma', 'no-cache');
-        
-        // Proteksi tambahan
-        $this->response->setHeader('X-Content-Type-Options', 'nosniff');
-    }
-    
     /*public function diagnosa()
     {
         $reqTanggal = $this->request->getGet('tanggal');

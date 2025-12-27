@@ -37,99 +37,80 @@ class SidangAdmin extends BaseControllerApi
      * Fitur: Anti-Spam, XSS Cleaning, Strict Validation
      */
     public function save()
-    {
-        // 1. SECURITY: Rate Limiting (Throttler)
-        // Batasi: Maksimal 5 request per 60 detik per IP Address
-        $throttler = Services::throttler();
-        $ipAddress = $this->request->getIPAddress();
-        
-        if ($throttler->check(md5($ipAddress . 'save_admin'), 5, 60) === false) {
+{
+    // 1. SECURITY: Rate Limiting
+    $throttler = \Config\Services::throttler();
+    $ipAddress = $this->request->getIPAddress();
+    
+    if ($throttler->check(md5($ipAddress . 'save_admin'), 5, 60) === false) {
+        return $this->respond([
+            'status' => false,
+            'message' => 'Terlalu banyak percobaan. Tunggu 1 menit lagi.',
+            'csrf_hash' => csrf_hash(),
+        ], 429);
+    }
+
+    $input = $this->getRequestInput();
+    
+    // 2. SECURITY: Sanitasi
+    $namaClean = strip_tags(trim($input['nama_pegawai'] ?? ''));
+    $nipClean = preg_replace('/[^0-9]/', '', $input['nip'] ?? '');
+
+    // 3. Validasi
+    $rules = [
+        'nip' => [
+            'rules' => 'required|numeric|exact_length[18]',
+            'errors' => ['exact_length' => 'NIP harus 18 digit.']
+        ],
+        'nama_pegawai' => ['rules' => 'required|min_length[3]|max_length[100]']
+    ];
+
+    $validationData = ['nip' => $nipClean, 'nama_pegawai' => $namaClean];
+
+    if (!$this->validateData($validationData, $rules)) {
+        return $this->respond([
+            'status' => false,
+            'message' => 'Validasi gagal: ' . implode(', ', $this->validator->getErrors()),
+            'csrf_hash' => csrf_hash(),
+        ], 400);
+    }
+
+    try {
+        // 4. Cek Duplikasi
+        $existingUser = $this->model->where('nip', $nipClean)->first();
+        if ($existingUser) {
             return $this->respond([
                 'status' => false,
-                'message' => 'Terlalu banyak percobaan. Tunggu 1 menit lagi.',
-            ], 429); // HTTP 429 Too Many Requests
+                'message' => 'Gagal: NIP Pegawai sudah terdaftar.',
+                'csrf_hash' => csrf_hash(),
+            ], 400);
         }
 
-        // Endpoint: POST /api/admins/save
-        $input = $this->getRequestInput();
-        
-        // 2. SECURITY: Sanitasi Input (Cegah XSS)
-        // Hapus tag HTML berbahaya dari Nama Pegawai
-        $namaRaw = $input['nama_pegawai'] ?? '';
-        $namaClean = strip_tags(trim($namaRaw));
-        
-        // Pastikan NIP hanya angka (menghapus spasi/huruf iseng)
-        $nipRaw = $input['nip'] ?? '';
-        $nipClean = preg_replace('/[^0-9]/', '', $nipRaw);
+        // 5. EKSEKUSI INSERT (Hanya Sekali)
+        $inserted = $this->model->insert([
+            'nip'               => $nipClean,
+            'nama_pegawai'      => strtoupper($namaClean),
+            'sidang_2fa_secret' => null, 
+            'is_active'         => 0
+        ]);
 
-        // 3. Validasi Ketat
-        // NIP harus numeric dan tepat 18 digit (Standar NIP)
-        $rules = [
-            'nip' => [
-                'label' => 'NIP',
-                'rules' => 'required|numeric|exact_length[18]',
-                'errors' => [
-                    'numeric' => 'NIP harus berupa angka.',
-                    'exact_length' => 'NIP harus berjumlah tepat 18 digit.'
-                ]
-            ],
-            'nama_pegawai' => [
-                'label' => 'Nama Pegawai',
-                'rules' => 'required|min_length[3]|max_length[100]|string',
-                'errors' => [
-                    'string' => 'Nama mengandung karakter tidak valid.'
-                ]
-            ]
-        ];
-
-        // Override input data untuk validasi dengan data yang sudah dibersihkan
-        $validationData = [
-            'nip' => $nipClean,
-            'nama_pegawai' => $namaClean
-        ];
-
-        if (!$this->validateData($validationData, $rules)) {
-            return $this->respond([
-                'status' => false,
-                'message' => 'Validasi gagal: ' . implode(', ', $this->validator->getErrors()),
-                'data' => $this->validator->getErrors(),
-            ], ResponseInterface::HTTP_BAD_REQUEST);
-        }
-
-        try {
-            // 4. Cek Duplikasi (Strict Create Mode)
-            $existingUser = $this->model->where('nip', $nipClean)->first();
-
-            if ($existingUser) {
-                // SECURITY LOG: Mencatat percobaan duplikasi
-                log_message('warning', "Percobaan daftar NIP duplikat [$nipClean] dari IP: $ipAddress");
-                
-                return $this->respond([
-                    'status' => false,
-                    'message' => 'Gagal: NIP Pegawai sudah terdaftar.',
-                ], ResponseInterface::HTTP_BAD_REQUEST);
-            }
-
-            // --- INSERT DATA BARU ---
-            $this->model->insert([
-                'nip' => $nipClean,
-                'nama_pegawai' => strtoupper($namaClean), // Standarisasi Huruf Besar
-                'sidang_2fa_secret' => null, 
-                'is_active' => 0
-            ]);
-
-            // SECURITY LOG: Mencatat sukses
+        if ($inserted) {
             log_message('info', "Admin Sidang Baru [$nipClean] ditambahkan oleh IP: $ipAddress");
-
             return $this->respond([
                 'status' => true,
                 'message' => 'NIP Pegawai berhasil ditambahkan. Silakan Generate QR Code.',
+                'csrf_hash' => csrf_hash(), // Sinkronisasi untuk Interceptor JS
             ], 200);
-
-        } catch (\Throwable $e) {
-            return $this->failServerError('Gagal menyimpan data: ' . $e->getMessage());
         }
+
+    } catch (\Throwable $e) {
+        return $this->respond([
+            'status' => false,
+            'message' => 'Gagal sistem: ' . $e->getMessage(),
+            'csrf_hash' => csrf_hash(),
+        ], 500);
     }
+}
     
     public function toggle($id = null)
     {

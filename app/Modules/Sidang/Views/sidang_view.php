@@ -172,7 +172,7 @@
                         <label class="form-label-modern required-field">Nomor Surat</label>
                         <div class="input-group">
                             <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-envelope-open-text"></i></span>
-                            <input type="text" class="form-control form-control-modern validate-input" id="cfgNomorSurat" placeholder="Contoh: B-123/M.3.29/Es.2/12/2025">
+                            <input type="text" class="form-control form-control-modern validate-input" id="cfgNomorSurat" data-type="mixed" placeholder="B-123/M.3.29/Es.2/12/2025">
                         </div>
                         <div class="invalid-feedback-custom">Nomor surat wajib diisi untuk P-38.</div>
                     </div>
@@ -182,20 +182,20 @@
                             <label class="form-label-modern required-field">Nama Instansi</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-landmark"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgInstansi" placeholder="KEJAKSAAN NEGERI...">
+                                <input type="text" class="form-control form-control-modern validate-input" id="cfgInstansi" data-type="text" placeholder="KEJAKSAAN NEGERI...">
                             </div>
                         </div>
                         <div class="col-md-5">
                             <label class="form-label-modern required-field">Kota (Tempat TTD)</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-map-location-dot"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgKota" placeholder="Contoh: Boyolali">
+                                <input type="text" class="form-control form-control-modern validate-input" id="cfgKota" data-type="text" placeholder="Boyolali">
                             </div>
                         </div>
                     </div>
-
+                    
                     <div class="modal-section-label">
-                        <i class="fa-solid fa-signature"></i> 2. Penandatangan
+                    <i class="fa-solid fa-signature"></i> 2. Penandatangan
                     </div>
 
                     <div class="info-box-modern mb-3">
@@ -206,35 +206,35 @@
                     </div>
 
                     <div class="row g-3 mb-3">
-                        <div class="col-md-6">
+                        <div class="col-md-6" id="col-jabatan-struktural" style="display: none;">
                             <label class="form-label-modern required-field">Jabatan Struktural</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-briefcase"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgJabatan" placeholder="KEPALA SEKSI...">
+                                <input type="text" name="ttd_jabatan" class="form-control form-control-modern validate-input" id="cfgJabatan" data-type="text" placeholder="KEPALA SEKSI...">
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label-modern required-field">Pangkat / Golongan</label>
+                        <div class="col-md-6" id="parent-pangkat">
+                            <label class="form-label-modern">Pangkat / Golongan</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-star"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgPangkat" placeholder="Jaksa Madya (IV/a)">
+                                <input type="text" name="ttd_pangkat" class="form-control form-control-modern" id="cfgPangkat" data-type="text" placeholder="Jaksa Madya (IV/a)">
                             </div>
                         </div>
                     </div>
 
                     <div class="row g-3 mb-4">
-                        <div class="col-md-7">
+                        <div class="col-md-7" id="col-nama-pejabat" style="display: none;">
                             <label class="form-label-modern required-field">Nama Lengkap Pejabat</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-user-tie"></i></span>
-                                <input type="text" class="form-control form-control-modern validate-input" id="cfgNamaPejabat" placeholder="Nama lengkap...">
+                                <input type="text" name="ttd_nama" class="form-control form-control-modern validate-input" id="cfgNamaPejabat" data-type="text" placeholder="Nama lengkap...">
                             </div>
                         </div>
-                        <div class="col-md-5">
-                            <label class="form-label-modern required-field">NIP / NRP</label>
+                        <div class="col-md-5" id="parent-nip">
+                            <label class="form-label-modern">NIP / NRP</label>
                             <div class="input-group">
                                 <span class="input-group-text input-group-text-modern"><i class="fa-solid fa-id-card"></i></span>
-                                <input type="text" class="form-control form-control-modern" id="cfgNipPejabat" placeholder="199...">
+                                <input type="text" name="ttd_nip" class="form-control form-control-modern" id="cfgNipPejabat" data-type="number" placeholder="199...">
                             </div>
                         </div>
                     </div>

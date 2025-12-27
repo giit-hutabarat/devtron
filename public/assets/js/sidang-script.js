@@ -249,12 +249,35 @@ $(document).ready(function() {
     });
 
     // C. CHECKBOX P-38 vs P-37 LOGIC
+    function toggleModalFields() {
+        const isP38Checked = $('#chkP38').is(':checked');
+        const $colJabatan = $('#col-jabatan-struktural');
+        const $colNamaPejabat = $('#col-nama-pejabat');
+        const $parentPangkat = $('#parent-pangkat');
+        const $parentNip = $('#parent-nip');
+
+        if (isP38Checked) {
+            $colJabatan.show();
+            $colNamaPejabat.show();
+            // Kembalikan ke layout bagi dua
+            $parentPangkat.removeClass('col-md-12').addClass('col-md-6');
+            $parentNip.removeClass('col-md-12').addClass('col-md-5');
+        } else {
+            $colJabatan.hide();
+            $colNamaPejabat.hide();
+            // Buat Full Width untuk P37
+            $parentPangkat.removeClass('col-md-6').addClass('col-md-12');
+            $parentNip.removeClass('col-md-5').addClass('col-md-12');
+        }
+    }
+
     $('#chkP38').on('change', function() {
         if ($(this).is(':checked')) {
             $('#chkP37').prop('checked', false).prop('disabled', true);
         } else {
             $('#chkP37').prop('disabled', false);
         }
+        toggleModalFields();
         updateBtnState();
     });
 
@@ -264,6 +287,7 @@ $(document).ready(function() {
         } else {
             $('#chkP38').prop('disabled', false);
         }
+        toggleModalFields();
         updateBtnState();
     });
 
@@ -302,9 +326,14 @@ $(document).ready(function() {
     var myAppModal = new bootstrap.Modal(elModal, { backdrop: 'static', keyboard: false });
     
     // Fix Error Aria-Hidden Bootstrap
-    elModal.addEventListener('show.bs.modal', function () { this.removeAttribute('aria-hidden'); });
-    elModal.addEventListener('shown.bs.modal', function () { this.removeAttribute('aria-hidden'); });
-
+    elModal.addEventListener('show.bs.modal', function () { 
+        document.body.classList.add('modal-open');
+    
+    });
+    
+    elModal.addEventListener('hidden.bs.modal', function () {
+    document.body.classList.remove('modal-open');
+    });
     var formToSubmit = null; 
 
     // Tombol "Proses Seleksi" diklik
@@ -323,6 +352,8 @@ $(document).ready(function() {
             return false; 
         }
 
+        toggleModalFields();
+        
         // Tampilkan/Sembunyikan Input Nomor Surat
         if (isP38) {
             $('#blockNomorSurat').show();
@@ -346,32 +377,76 @@ $(document).ready(function() {
     // Tombol "LANJUTKAN CETAK" di Modal
     $('#btnFinalCetak').on('click', function() {
         
-        // 1. Reset Validasi UI
-        $('#alertModal').addClass('d-none');
-        $('.form-control-modern').removeClass('is-invalid');
-        let isValid = true;
+        // 1. Reset State
+            const $alert = $('#alertModal');
+            $alert.addClass('d-none').html(''); // Kosongkan pesan lama
+            $('.form-control-modern').removeClass('is-invalid');
+            
+            let isValid = true;
+            let errorList = []; // Gunakan array untuk menampung banyak error
+
 
         // 2. Cek Input Wajib di Modal
         $('.validate-input').each(function() {
             // Skip Nomor Surat jika sedang di-hidden
-            if ($(this).attr('id') === 'cfgNomorSurat' && $('#blockNomorSurat').is(':hidden')) {
-                return; 
-            }
-            if ($.trim($(this).val()) === '') {
-                $(this).addClass('is-invalid');
-                isValid = false;
-            }
-        });
-
-        if (!isValid) {
-            $('#alertModal').removeClass('d-none');
-            // Animasi getar
-            $('.modal-content').addClass('shake-anim');
-            setTimeout(() => $('.modal-content').removeClass('shake-anim'), 500);
-            return false; 
+            if ($(this).closest('#col-jabatan-struktural').is(':hidden') || 
+                $(this).closest('#col-nama-pejabat').is(':hidden') ||
+                ($(this).attr('id') === 'cfgNomorSurat' && $('#blockNomorSurat').is(':hidden'))) {
+                return; // Jangan validasi jika kolomnya sedang di-hidden
         }
 
-        // 3. Persiapan Submit
+        const value = $.trim($(this).val());
+        const type = $(this).data('type');
+        const label = $(this).closest('.col-md-6, .col-md-7, .col-md-5, .col-md-4, .mb-3').find('label').text().replace('*', '').trim();; 
+        
+        // A. Validasi Kosong
+        if (value === '') {
+            $(this).addClass('is-invalid');
+            isValid = false;
+            errorList.push(`<b>${label}</b> tidak boleh kosong.`);
+            return;
+        }
+        // B. Validasi Tipe Data (Regex)
+        if (type === 'text') {
+            const textRegex = /^[a-zA-Z\s.,]*$/;
+            if (!textRegex.test(value)) {
+                $(this).addClass('is-invalid');
+                isValid = false;
+                errorList.push(`<b>${label}</b> hanya boleh berisi huruf.`);
+            }
+        } else if (type === 'number') {
+            const numRegex = /^[0-9]*$/;
+            if (!numRegex.test(value)) {
+                $(this).addClass('is-invalid');
+                isValid = false;
+                errorList.push(`<b>${label}</b> hanya boleh berisi angka.`);
+            }
+        }
+    });
+if (!isValid) {
+        // Buat struktur HTML pesan error yang rapi
+        let htmlContent = `<div class="d-flex align-items-start">
+            <i class="fa-solid fa-circle-exclamation me-2 mt-1"></i>
+            <div>
+                <div class="fw-bold mb-1">Terjadi Kesalahan:</div>
+                <ul class="ps-3 mb-0">`;
+        
+        errorList.forEach(err => {
+            htmlContent += `<li>${err}</li>`;
+        });
+
+        htmlContent += `</ul></div></div>`;
+
+        $alert.html(htmlContent).removeClass('d-none');
+        
+        // Efek Shake (Getar) pada modal agar user sadar ada error
+        $('.modal-content').addClass('shake-animation');
+        setTimeout(() => $('.modal-content').removeClass('shake-animation'), 500);
+        
+        return false;
+    }
+
+        // 4. Proses Lanjut Jika Valid (Logic Submit Tetap Sama)
         // Hapus data lama yg mungkin nempel
         $(formToSubmit).find('.extra-data').remove(); 
         $(formToSubmit).find('input[type="hidden"][name="pilih_data[]"]').remove();

@@ -12,7 +12,8 @@ class SidangModel extends Model
     
     protected $allowedFields = [
         'tanggal_sidang', 
-        'nomor_perkara', 
+        'nomor_perkara',
+        'nama_asli', 
         'nama_terdakwa', 
         'jpu', 
         'data_full',

@@ -3,6 +3,37 @@
  * Clean Code, Separation of Concerns, Enhanced Security UI
  */
 
+// --- 1. AXIOS CSRF INTERCEPTOR GLOBAL ---
+axios.interceptors.response.use(
+    (response) => {
+        if (response.data && response.data.csrf_hash) {
+            const newHash = response.data.csrf_hash;
+            if (typeof appConfig !== 'undefined') appConfig.csrfHash = newHash;
+            
+            // Update global data store
+            if (window.dataVue) window.dataVue.currentCsrfHash = newHash;
+            
+            // KRUSIAL: Jika instance Vue lo namanya 'app', kita paksa update di sana
+            if (typeof app !== 'undefined' && app.currentCsrfHash !== undefined) {
+                app.currentCsrfHash = newHash;
+            }
+        }
+        return response;
+    },
+    (error) => {
+        if (error.response && error.response.data && error.response.data.csrf_hash) {
+            const newHash = error.response.data.csrf_hash;
+            if (typeof appConfig !== 'undefined') appConfig.csrfHash = newHash;
+            if (window.dataVue) window.dataVue.currentCsrfHash = newHash;
+            
+            if (typeof app !== 'undefined' && app.currentCsrfHash !== undefined) {
+                app.currentCsrfHash = newHash;
+            }
+        }
+        return Promise.reject(error);
+    }
+);
+
 (function() {
     
     // Pastikan Vue instance global tersedia
@@ -118,56 +149,42 @@
 
         // 2. SAVE (Create) - FIXED & RESTORED
         async saveNip() {
-            if (!this.$refs.form.validate()) return;
-            this.loading = 'add';
+            if (!this.$refs.form.validate() || this.loading) return; 
+            this.loading = 'add'; // Set loading segera
+
+            // Gunakan URLSearchParams agar format data stabil di CI4
+            const payload = new URLSearchParams();
+            payload.append('nip', this.form.nip);
+            payload.append('nama_pegawai', this.form.namaPegawai);
+            // Pakai currentCsrfHash sesuai variabel di script lo
+            payload.append(appConfig.csrfTokenName, this.currentCsrfHash); 
 
             try {
-                const payload = {
-                    nip: this.form.nip,
-                    nama_pegawai: this.form.namaPegawai,
-                    [appConfig.csrfTokenName]: this.currentCsrfHash
-                };
-
                 const response = await axios.post(appConfig.apiUrls.save, payload);
                 
-                // Update CSRF token jika server mengirim yang baru
-                if(response.data.csrf_hash) this.updateCsrf(response.data.csrf_hash);
-
-                // Handle jika status 200 tapi isinya false
-                if (response.data.status === false) {
-                     this.showSnackbar(response.data.message, 'error');
-                } else {
-                     this.showSnackbar(response.data.message, 'success');
-                     this.form.nip = '';
-                     this.form.namaPegawai = '';
-                     this.$refs.form.resetValidation();
-                     this.loadAdmins();
-                }
+                // Token sudah diupdate otomatis oleh Interceptor, lo fokus ke UI
+                    if (response.data.status === true) {
+                        this.showSnackbar(response.data.message, 'success');
+                        this.form.nip = '';
+                        this.form.namaPegawai = '';
+                        this.$refs.form.resetValidation();
+                        this.loadAdmins(); // Refresh data tabel
+                    } else {
+                        this.showSnackbar(response.data.message, 'error');
+                    }
             } catch (error) {
-                // --- KITA KEMBALIKAN LOGIC ERRORNYA ---
-                let pesanError = 'Gagal menyimpan data.'; // Default message
-
-                // Cek apakah error datang dari respon server (400 Bad Request)
-                // Backend bro mengirim: {status: false, message: "Gagal: NIP..."}
-                if (error.response && error.response.data) {
-                    
-                    // Ambil pesan error spesifik
-                    if (error.response.data.message) {
-                        pesanError = error.response.data.message;
-                    }
-
-                    // Update CSRF jika ada di error response
-                    if (error.response.data.csrf_hash) {
-                        this.updateCsrf(error.response.data.csrf_hash);
-                    }
-                }
-
-                // TAMPILKAN NOTIFIKASI (PENTING!)
-                this.showSnackbar(pesanError, 'error');
+                // Jika error 400 (Duplikat) tapi data sudah masuk, beri pesan lebih bersahabat
+                let msg = error.response?.data?.message || 'Terjadi kesalahan sistem.';
+                this.showSnackbar(msg, 'error');
+                
+                // Refresh tabel tetap dilakukan karena ada kemungkinan request pertama sukses tapi lo dapet error dari request kedua
+                this.loadAdmins(); 
                 
                 console.error("Error Log:", error);
-            } finally {
+        } finally {
+            // Kembalikan status loading ke false agar tombol bisa diklik lagi
                 this.loading = false;
+                
             }
         },
 

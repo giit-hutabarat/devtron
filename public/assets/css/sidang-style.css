@@ -708,3 +708,35 @@ div.dataTables_wrapper div.dataTables_filter {
         margin-top: 15px;
     }
 }
+
+@keyframes shake {
+    0%, 100% {transform: translateX(0);}
+    25% {transform: translateX(-10px);}
+    75% {transform: translateX(10px);}
+}
+.shake-animation {
+    animation: shake 0.4s ease-in-out;
+    border: 1px solid #ff4d4d !important;
+}
+/* Pastikan backdrop modal berada di lapisan paling atas sebelum modal itu sendiri */
+.modal-backdrop {
+    z-index: 1040 !important;
+}
+
+.modal {
+    z-index: 1050 !important;
+}
+
+/* Kunci interaksi di background saat modal aktif */
+body.modal-open .main-container, 
+body.modal-open .navbar {
+    pointer-events: none; /* Mematikan semua klik di belakang */
+    user-select: none;    /* Mencegah teks bisa diblok/copy saat modal buka */
+    filter: blur(2px);    /* Opsional: menambah efek fokus pada modal */
+    transition: filter 0.3s ease;
+}
+
+/* Pastikan elemen di dalam modal TETAP bisa diklik */
+.modal-modern {
+    pointer-events: auto !important;
+}
