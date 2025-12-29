@@ -628,7 +628,7 @@ class SidangController extends BaseController
             
             $p38TtdNama    = !empty($ttdNama) ? $ttdNama : $firstRow['jpu']; 
             $p38TtdNip     = !empty($ttdNip) ? $ttdNip : '';
-            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'Kasi Pidum';
+            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'Kepala Seksi Tindak Pidana Umum';
             $p38TtdPangkat = !empty($ttdPangkat) ? $ttdPangkat : '-';
             
             $namaTerdakwaPertama = $this->cleanNamaTerdakwa($firstRow['nama_terdakwa']);
