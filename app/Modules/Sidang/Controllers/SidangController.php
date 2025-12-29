@@ -543,7 +543,7 @@ class SidangController extends BaseController
                 // Penentuan Tanda Tangan (Gunakan Nama Kapital Sesuai Perja 8/2019)
                 $finalTtdNama = !empty($ttdNama) ? strtoupper($ttdNama) : strtoupper($row['jpu']);
                 $finalTtdNip = !empty($ttdNip) ? $ttdNip : '';
-                $finalTtdJabatan = !empty($ttdJabatan) ? $toTitle($ttdJabatan) : 'Kepala Seksi Tindak Pidana Umum';
+                $finalTtdJabatan = !empty($ttdJabatan) ? $toTitle($ttdJabatan) : 'Kepala S';
 
                 // Mapping Data Sesuai Kebutuhan Template PDF & Word
                 // --- GANTI BARIS 179 - 204 DENGAN INI ---
