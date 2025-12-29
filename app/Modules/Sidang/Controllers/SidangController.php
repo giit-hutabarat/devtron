@@ -438,366 +438,285 @@ class SidangController extends BaseController
     // CORE LOGIC: PROSES CETAK (WORD & PDF)
     // ==========================================================
     public function proses()
-    {
-  
-        // 1. VALIDASI INPUT
-        $selectedNoPerkara = $this->request->getPost('pilih_data');
-        $docTypes          = $this->request->getPost('jenis_dokumen');
-        $mode              = $this->request->getPost('mode_cetak');
-        $tanggalTerpilih   = $this->request->getPost('tanggal_terpilih');
+{
+    // 1. VALIDASI INPUT AWAL
+    $selectedNoPerkara = $this->request->getPost('pilih_data');
+    $docTypes          = $this->request->getPost('jenis_dokumen');
+    $mode              = $this->request->getPost('mode_cetak');
+    $tanggalTerpilih   = $this->request->getPost('tanggal_terpilih');
 
-        if (empty($tanggalTerpilih)) return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
-        
-        $d = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih);
-        if ($d && $d->format('d-m-Y') === $tanggalTerpilih) {
-            $dbFormatDate = $d->format('Y-m-d');
-        } else {
-            return redirect()->back()->with('error', 'Format tanggal tidak valid (Harus DD-MM-YYYY).');
+    if (empty($tanggalTerpilih)) return redirect()->back()->with('error', 'Tanggal sidang belum dipilih.');
+    
+    $d = \DateTime::createFromFormat('d-m-Y', $tanggalTerpilih);
+    if ($d && $d->format('d-m-Y') === $tanggalTerpilih) {
+        $dbFormatDate = $d->format('Y-m-d');
+    } else {
+        return redirect()->back()->with('error', 'Format tanggal tidak valid (Harus DD-MM-YYYY).');
+    }
+
+    $allowedModes = ['seleksi', 'full_p38'];
+    if (!in_array($mode, $allowedModes)) $mode = 'seleksi';
+
+    if ($mode != 'full_p38' && empty($selectedNoPerkara)) {
+        return redirect()->back()->with('error', 'Anda belum memilih data Terdakwa.');
+    }
+    if (empty($docTypes)) return redirect()->back()->with('error', 'Jenis dokumen belum dipilih.');
+
+    // 2. PROSES DATA CONFIG DARI MODAL
+    $customInstansi   = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
+    $customKota       = $this->request->getPost('custom_kota') ?: 'Indonesia';
+    $customNomorSurat = $this->request->getPost('custom_nomor_surat') ?: 'B-......./.......'; 
+    $ttdJabatan       = $this->request->getPost('ttd_jabatan'); 
+    $ttdNama          = $this->request->getPost('ttd_nama');
+    $ttdNip           = $this->request->getPost('ttd_nip');
+    $ttdPangkat       = $this->request->getPost('ttd_pangkat');
+    $outputFormat     = $this->request->getPost('output_format') ?: 'word'; 
+
+    // Setup Folder Arsip
+    $hariIni = date('Y-m-d');
+    $pathArsip = WRITEPATH . 'arsip_sidang';
+    $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
+    if (!is_dir($pathArsip)) @mkdir($pathArsip, 0777, true);
+    if (!is_dir($folderBackup)) @mkdir($folderBackup, 0777, true);
+
+    $generatedFiles = [];
+    $fileDateStr = str_replace('/', '-', $tanggalTerpilih); 
+
+    // --- FIX: QUERY DATABASE DENGAN FILTER TANGGAL (AGAR TIDAK DOUBLE/ZIP) ---
+    if ($mode == 'full_p38') {
+        // Ambil semua data pada tanggal tersebut
+        $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
+        if (!is_array($docTypes)) $docTypes = [];
+        if (!in_array('p38', $docTypes)) $docTypes[] = 'p38';
+    } else {
+        // Ambil hanya yang dipilih DAN sesuai tanggal sidang (Cegah data lama terpanggil)
+        $targetData = $this->sidangModel->whereIn('nomor_perkara', $selectedNoPerkara)
+                                        ->where('tanggal_sidang', $dbFormatDate)
+                                        ->findAll();
+    }
+
+    if (empty($targetData)) return redirect()->back()->with('error', 'Data tidak ditemukan untuk tanggal tersebut.');
+
+    // --- HELPERS FORMATTING ---
+    $toTitle = function($str) {
+        return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
+    };
+
+    $formatNamaGelar = function($str) use ($toTitle) {
+        if (empty($str)) return '-';
+        if (strpos($str, ',') !== false) {
+            $parts = explode(',', $str, 2);
+            return $toTitle($parts[0]) . ', ' . strtoupper(trim($parts[1]));
         }
+        return $toTitle($str);
+    };
 
-        $allowedModes = ['seleksi', 'full_p38'];
-        if (!in_array($mode, $allowedModes)) $mode = 'seleksi';
+    $formatPendidikan = function($str) {
+        if (empty($str)) return '-';
+        $pattern = '/\b(SD|SMP|SMA|SLTA)\b/i';
+        if (preg_match($pattern, $str)) return strtoupper(trim($str));
+        return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
+    };
 
-        if ($mode != 'full_p38' && empty($selectedNoPerkara)) {
-            return redirect()->back()->with('error', 'Anda belum memilih data Terdakwa.');
-        }
-        if (empty($docTypes)) return redirect()->back()->with('error', 'Jenis dokumen belum dipilih.');
-
-        // 2. PROSES DATA CONFIG
-        $customInstansi   = $this->request->getPost('custom_instansi') ?: 'KEJAKSAAN NEGERI';
-        $customKota       = $this->request->getPost('custom_kota') ?: 'Indonesia';
-        $customNomorSurat = $this->request->getPost('custom_nomor_surat') ?: 'B-......./.......'; 
-        $ttdJabatan       = $this->request->getPost('ttd_jabatan'); 
-        $ttdNama          = $this->request->getPost('ttd_nama');
-        $ttdNip           = $this->request->getPost('ttd_nip');
-        $ttdPangkat       = $this->request->getPost('ttd_pangkat');
-        $outputFormat     = $this->request->getPost('output_format') ?: 'word'; 
-
-        // Setup Folder
-        $hariIni = date('Y-m-d');
-        $pathArsip = WRITEPATH . 'arsip_sidang';
-        $folderBackup = $pathArsip . DIRECTORY_SEPARATOR . $hariIni;
-        
-        if (!is_dir($pathArsip)) @mkdir($pathArsip, 0777, true);
-        if (!is_dir($folderBackup)) @mkdir($folderBackup, 0777, true);
-
-        $generatedFiles = [];
-        $targetData = [];
-        $fileDateStr = str_replace('/', '-', $tanggalTerpilih); 
-
-        // Query Database
-        if ($mode == 'full_p38') {
-            $targetData = $this->sidangModel->where('tanggal_sidang', $dbFormatDate)->findAll();
-            if (!is_array($docTypes)) $docTypes = [];
-            if (!in_array('p38', $docTypes)) $docTypes[] = 'p38';
-        } else {
-            $targetData = $this->sidangModel->whereIn('nomor_perkara', $selectedNoPerkara)->findAll();
-        }
-
-        if (empty($targetData)) return redirect()->back()->with('error', 'Data tidak ditemukan.');
-
-        // Tambahkan ini di awal method proses() atau sebelum loop targetData
-        $toTitle = function($str) {
-            return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
-        };
-        // Helper khusus Nama + Gelar (Aaa Bbb, S.H.) [cite: 1]
-        $formatNamaGelar = function($str) use ($toTitle) {
-            if (empty($str)) return '-';
-            // Cek jika ada koma (biasanya pemisah gelar)
-            if (strpos($str, ',') !== false) {
-                $parts = explode(',', $str, 2);
-                return $toTitle($parts[0]) . ', ' . strtoupper(trim($parts[1]));
-            }
-            return $toTitle($str);
-        };
-
-        // Helper untuk memproses teks pendidikan
-        $formatPendidikan = function($str) {
-            if (empty($str)) return '-';
+    // -----------------------------------------------------
+    // A. GENERATE P-37 (SATU PER SATU)
+    // -----------------------------------------------------
+    if (is_array($docTypes) && in_array('p37', $docTypes)) {
+        foreach ($targetData as $row) {
+            $details = json_decode($row['data_full'], true);
             
-            // Pattern untuk mencari kata SD, SMP, SMA, atau SLTA (case insensitive)
-            $pattern = '/\b(SD|SMP|SMA|SLTA)\b/i';
-            
-            // Jika mengandung salah satu kata di atas, buat kapital semua
-            if (preg_match($pattern, $str)) {
-                return strtoupper(trim($str));
-            }
-            
-            // Jika tidak (misal: S1 Hukum, Diploma, dll), gunakan format Title Case
-            return mb_convert_case(strtolower(trim($str)), MB_CASE_TITLE, "UTF-8");
-        };
+            // Logika Waktu
+            $timestampSidang = strtotime($row['tanggal_sidang']);
+            $hariArr = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+            $namaHari = $hariArr[date('l', $timestampSidang)];
+            $tglSidangIndo = $this->formatTglSaja($row['tanggal_sidang']);
 
-      // -----------------------------------------------------
-        // GENERATE P-37 (HYBRID: WORD ATAU PDF)
-        // -----------------------------------------------------
-        if (is_array($docTypes) && in_array('p37', $docTypes)) {
-            foreach ($targetData as $row) {
-                $details = json_decode($row['data_full'], true);
+            // Mapping DataRow Final P-37
+            $dataRow = [
+                'nama_lengkap_raw' => $row['nama_asli'] ?? $row['nama_terdakwa'], // Narasi: Nama Asli
+                'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])), // Tabel: Bersih
                 
-                // Logika Waktu
-                $timestampSidang = strtotime($row['tanggal_sidang']);
-                $hariArr = ['Sunday'=>'Senin','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
-                $namaHari = $hariArr[date('l', $timestampSidang)];
-                $tglSidangIndo = $this->formatTglSaja($row['tanggal_sidang']);
+                'nama_instansi'   => $toTitle($customInstansi), 
+                'kota_surat'      => $toTitle($customKota),
+                'tanggal_surat'   => $this->formatTglSaja(date('Y-m-d')),
+                'nomor_perkara'   => $row['nomor_perkara'],
+                'jpu'             => $formatNamaGelar($row['jpu']), 
+                
+                'nama_hari'       => $namaHari,        
+                'hari_sidang'     => $tglSidangIndo,   
+                'jenis_perkara'   => $toTitle($details['jenis_perkara'] ?? 'Pidana Umum'),
+                'agenda'          => $details['agenda_raw'] ?? '-', 
+                'tempat_lahir'    => $toTitle($details['tempat_lahir'] ?? '-'),
+                'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
+                'umur'            => $details['umur'] ?? '-',
+                'jenis_kelamin'   => $toTitle($details['jenis_kelamin'] ?? '-'),
+                'kewarganegaraan' => $toTitle($details['kewarganegaraan'] ?? 'Indonesia'),
+                'alamat'          => $toTitle($details['alamat'] ?? '-'),
+                'agama'           => $toTitle($details['agama'] ?? '-'),
+                'pekerjaan'       => $toTitle($details['pekerjaan'] ?? '-'),
+                'pendidikan'      => $formatPendidikan($details['pendidikan'] ?? '-'),
+                'nama_ortu'       => $toTitle($details['nama_ortu'] ?? '-'),
 
-                // Penentuan Tanda Tangan (Gunakan Nama Kapital Sesuai Perja 8/2019)
-                $finalTtdNama = !empty($ttdNama) ? strtoupper($ttdNama) : strtoupper($row['jpu']);
-                $finalTtdNip = !empty($ttdNip) ? $ttdNip : '';
-                $finalTtdJabatan = !empty($ttdJabatan) ? $toTitle($ttdJabatan) : 'Kepala S';
+                // Tanda Tangan
+                'ttd_nama'        => strtoupper(!empty($ttdNama) ? $ttdNama : $row['jpu']),
+                'ttd_nip'         => !empty($ttdNip) ? $ttdNip : '', 
+                'ttd_jabatan'     => $ttdJabatan ?: 'Kepala Seksi Tindak Pidana Umum', 
+                'ttd_pangkat'     => $toTitle($ttdPangkat) ?: '',
+            ];
 
-                // Mapping Data Sesuai Kebutuhan Template PDF & Word
-                // --- GANTI BARIS 179 - 204 DENGAN INI ---
-                $dataRow = [
-                    // 1. Variabel untuk Kalimat Narasi (Wajib Kapital Seluruhnya & Tanpa Filter)
-                    'nama_lengkap_raw' => $row['nama_asli'] ?? $row['nama_terdakwa'],
+            $cleanNameFile = preg_replace('/[^A-Za-z0-9]/', '_', $this->cleanNamaTerdakwa($row['nama_terdakwa']));
+            $baseFileName = "P37_{$cleanNameFile}_{$fileDateStr}";
 
-                    // 2. Variabel untuk Tabel Identitas (Bersih & Rapi)
-                    'nama_terdakwa'   => $toTitle($this->cleanNamaTerdakwa($row['nama_terdakwa'])),
-                    
-                    'nama_instansi'   => $toTitle($customInstansi), 
-                    'kota_surat'      => $toTitle($customKota),
-                    'tanggal_surat'   => $this->formatTglSaja(date('Y-m-d')),
-                    'nomor_perkara'   => $row['nomor_perkara'],
-                    'jpu'             => $formatNamaGelar($row['jpu']), 
-                    'ttd_nama'        => strtoupper($finalTtdNama), 
-                    'nama_hari'       => $namaHari,        
-                    'hari_sidang'     => $tglSidangIndo,   
-                    'jenis_perkara'   => $toTitle($details['jenis_perkara'] ?? 'Pidana Umum'),
-                    'agenda'          => $details['agenda_raw'] ?? '-', 
-                    'tempat_lahir'    => $toTitle($details['tempat_lahir'] ?? '-'),
-                    'tgl_lahir'       => $details['tgl_lahir'] ?? '-',
-                    'umur'            => $details['umur'] ?? '-',
-                    'jenis_kelamin'   => $toTitle($details['jenis_kelamin'] ?? '-'),
-                    'kewarganegaraan' => $toTitle($details['kewarganegaraan'] ?? 'Indonesia'),
-                    'alamat'          => $toTitle($details['alamat'] ?? '-'),
-                    'agama'           => $toTitle($details['agama'] ?? '-'),
-                    'pekerjaan'       => $toTitle($details['pekerjaan'] ?? '-'),
-                    'pendidikan'      => $details['pendidikan'] ?? '-',
-                    'nama_ortu'       => $toTitle($details['nama_ortu'] ?? '-'),
-                    'ttd_nip'         => $finalTtdNip,
-                    'ttd_jabatan'     => $toTitle($finalTtdJabatan),
-                    'ttd_pangkat'     => $toTitle($ttdPangkat) ?: '',
-                ];
-
-                // Sanitasi Nama File agar tidak corrupt
-                $cleanName = preg_replace('/[^A-Za-z0-9]/', '_', $this->cleanNamaTerdakwa($row['nama_terdakwa']));
-                $cleanName = substr($cleanName, 0, 30);
-                $baseFileName = "P37_{$cleanName}_{$fileDateStr}";
-
-                if ($outputFormat === 'word') {
-                    $fileNameP37 = $baseFileName . ".docx";
-                    $this->generateDoc('template_p37.docx', $dataRow, $fileNameP37, $folderBackup, $generatedFiles);
-                } else {
-                    try {
-                        // Load View PDF
-                        $html = view('App\Modules\Sidang\Views\pdf\template_p37', $dataRow);
-                        
-                        $mpdf = new \Mpdf\Mpdf([
-                            'format' => [215, 330], // F4
-                            'margin_left' => 20, 'margin_right' => 15, 'margin_top' => 15, 'margin_bottom' => 10
-                        ]);
-
-                        $mpdf->WriteHTML($html);
-                        $finalName = $baseFileName . '.pdf';
-                        $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalName;
-                        $mpdf->Output($saveP, 'F');
-                        $generatedFiles[$finalName] = $saveP;
-                    } catch (\Throwable $e) {
-                        log_message('error', 'PDF Error: ' . $e->getMessage());
-                        return redirect()->back()->with('error', 'Gagal membuat PDF P37: ' . $e->getMessage());
-                    }
-                }
-            }
-        }
-        // -----------------------------------------------------
-        // GENERATE P-38 (HYBRID: WORD OR PDF)
-        // -----------------------------------------------------
-        if (is_array($docTypes) && in_array('p38', $docTypes)) {
-            
-            $firstRow = $targetData[0];
-            $p38Instansi   = $customInstansi;
-            $p38Kota       = $customKota;
-            $p38TglSurat   = $this->formatTglSaja(date('Y-m-d'));
-            
-            $timestampSidang = strtotime($firstRow['tanggal_sidang']);
-            $hariArr = ['Sunday' => 'Minggu', 'Monday' => 'Senin', 'Tuesday' => 'Selasa', 'Wednesday' => 'Rabu', 'Thursday' => 'Kamis', 'Friday' => 'Jumat', 'Saturday' => 'Sabtu'];
-            $bulanArr = [1 => 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-            
-            $namaHariSaja   = $hariArr[date('l', $timestampSidang)];
-            $tanggalSaja    = date('d', $timestampSidang) . ' ' . $bulanArr[(int)date('m', $timestampSidang)] . ' ' . date('Y', $timestampSidang);
-            
-            $p38TtdNama    = !empty($ttdNama) ? $ttdNama : $firstRow['jpu']; 
-            $p38TtdNip     = !empty($ttdNip) ? $ttdNip : '';
-            $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'Kepala Seksi Tindak Pidana Umum';
-            $p38TtdPangkat = !empty($ttdPangkat) ? $ttdPangkat : '-';
-            
-            $namaTerdakwaPertama = $this->cleanNamaTerdakwa($firstRow['nama_terdakwa']);
-            $cleanNameOne = substr(preg_replace('/[^A-Za-z0-9 \-]/', '', $namaTerdakwaPertama), 0, 50);
-            $baseFileName = (count($targetData) === 1) ? "P38-{$cleanNameOne}-{$fileDateStr}" : "P38-Sidang-{$fileDateStr}";
-
-            // === OPSI 1: FORMAT WORD ===
             if ($outputFormat === 'word') {
-                $tableRows = [];
-                $no = 1;
-                foreach ($targetData as $row) {
-                    $det = json_decode($row['data_full'], true);
-                    $tableRows[] = [
-                        'no'            => $no++,
-                        'nomor_perkara' => $row['nomor_perkara'],
-                        'nama_terdakwa' => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
-                        'jpu'           => $row['jpu'],
-                        'status_sidang' => $det['status_sidang'] ?? '-',
-                        'jenis_perkara' => $det['jenis_perkara'] ?? '-',
-                        'agenda'        => $det['agenda_raw'] ?? '-'
-                        
-                    ];
-                }
-
-                $tplPath = WRITEPATH . 'templates/template_p38.docx';
-                if (file_exists($tplPath)) {
-                    $proc = new TemplateProcessor($tplPath);
-                    $proc->setValue('nomor_surat', $customNomorSurat);
-                    $proc->setValue('NOMOR_SURAT', $customNomorSurat);
-                    $proc->setValue('nama_instansi', $p38Instansi);
-                    $proc->setValue('NAMA_INSTANSI', $p38Instansi);
-                    $proc->setValue('kota_surat', $p38Kota);
-                    $proc->setValue('tanggal_surat', $p38TglSurat);
-                    $proc->setValue('hari_sidang', $namaHariSaja); 
-                    $proc->setValue('tanggal_sidang', $tanggalSaja);
-                    $proc->setValue('(HARI SIDANG)', $namaHariSaja);
-                    $proc->setValue('(TANGGAL SIDANG)', $tanggalSaja);
-                    $proc->setValue('nama_terdakwa_1', $namaTerdakwaPertama); 
-                    $proc->setValue('TTD_NAMA', $p38TtdNama);
-                    $proc->setValue('TTD_NIP', $p38TtdNip);
-                    $proc->setValue('TTD_JABATAN', $p38TtdJabatan);
-                    $proc->setValue('ttd_nama', $p38TtdNama);
-                    $proc->setValue('ttd_nip', $p38TtdNip);
-                    $proc->setValue('ttd_jabatan', $p38TtdJabatan);
-                    $proc->setValue('TTD_PANGKAT', $p38TtdPangkat);
-
-                    $countRows = count($tableRows);
-                    $proc->cloneRow('no', $countRows); 
-                    foreach ($tableRows as $index => $rowData) {
-                        $rowIndex = $index + 1; 
-                        $proc->setValue('no#' . $rowIndex, $rowData['no']);
-                        $proc->setValue('nomor_perkara#' . $rowIndex, $rowData['nomor_perkara']);
-                        $proc->setValue('nama_terdakwa#' . $rowIndex, $rowData['nama_terdakwa']);
-                        $proc->setValue('jpu#' . $rowIndex, $rowData['jpu']);
-                        $proc->setValue('status_sidang#' . $rowIndex, $rowData['status_sidang']);
-                        $proc->setValue('jenis_perkara#' . $rowIndex, $rowData['jenis_perkara']);
-                        $proc->setValue('agenda#' . $rowIndex, $rowData['agenda']);
-                    }
-                    /*
-                    $proc->cloneRow('no_2', $countRows); 
-                    foreach ($tableRows as $index => $rowData) {
-                        $rowIndex = $index + 1; 
-                        $proc->setValue('no_2#' . $rowIndex, $rowData['no']);
-                        $proc->setValue('nomor_perkara_2#' . $rowIndex, $rowData['nomor_perkara']);
-                        $proc->setValue('nama_terdakwa_2#' . $rowIndex, $rowData['nama_terdakwa']);
-                        $proc->setValue('jpu_2#' . $rowIndex, $rowData['jpu']);
-                        $proc->setValue('status_sidang_2#' . $rowIndex, $rowData['status_sidang']);
-                        $proc->setValue('jenis_perkara_2#' . $rowIndex, $rowData['jenis_perkara']);
-                    }
-                        */
-
-                    $finalName = $baseFileName . '.docx';
-                    $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalName;
-                    $proc->saveAs($saveP);
-                    $generatedFiles[$finalName] = $saveP;
-                }
-            } 
-            
-            // === OPSI 2: FORMAT PDF (VIA MPDF) ===
-            else if ($outputFormat === 'pdf') {
-                
-                // Ambil Path Logo untuk mPDF (Wajib path fisik, bukan URL)
-                $logoSetting = $this->setting->get('logo') ?? 'images/logo_kejaksaan.png';
-                $pathLogoFisik = FCPATH . $logoSetting;
-                if(!file_exists($pathLogoFisik)) {
-                    $pathLogoFisik = FCPATH . 'images/logo_kejaksaan.png';
-                }
-
-                $dataForPdf = [
-                    'logo_path'       => $pathLogoFisik, 
-                    'nama_instansi'   => $p38Instansi,
-                    'alamat_instansi' => $this->setting->get('alamat') ?? '-',
-                    'nomor_surat'     => $customNomorSurat,
-                    'kota_surat'      => $p38Kota,
-                    'tanggal_surat'   => $p38TglSurat,
-                    'hari_sidang'     => $namaHariSaja,
-                    'tanggal_sidang'  => $tanggalSaja,
-                    'nama_terdakwa_pertama' => $namaTerdakwaPertama,
-                    
-                    'ttd_jabatan'     => $p38TtdJabatan,
-                    'ttd_nama'        => $p38TtdNama,
-                    'ttd_pangkat'     => $p38TtdPangkat,
-                    'ttd_nip'         => $p38TtdNip,
-                    'data_tabel'      => []
-                ];
-
-                $no = 1;
-                foreach ($targetData as $row) {
-                    $det = json_decode($row['data_full'], true);
-                    $dataForPdf['data_tabel'][] = [
-                        'no' => $no++,
-                        'nomor_perkara' => $row['nomor_perkara'],
-                        'nama_terdakwa' => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
-                        'jpu'           => $row['jpu'],
-                        'agenda'        => $det['agenda_raw'] ?? '-',
-                        'status_sidang' => $det['status_sidang'] ?? '-'
-                    ];
-                }
-
-                try {
-                    $html = view('App\Modules\Sidang\Views\pdf\template_p38', $dataForPdf);
-                    
-                    if (ob_get_length()) {
-                        ob_end_clean(); 
-                    }
-                    
-                    $mpdf = new Mpdf([
-                        'mode' => 'utf-8', 
-                        'format' => [215, 330], // Ukuran F4 / Folio (mm)
-                        'orientation' => 'P',
-                        'margin_top' => 15,
-                        'margin_left' => 20,
-                        'margin_right' => 15
-                    ]);
-                    $mpdf->WriteHTML($html);
-                    
-                    $finalName = $baseFileName . '.pdf';
-                    $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalName;
-                    $mpdf->Output($saveP, 'F');
-                    
-                    $generatedFiles[$finalName] = $saveP;
-                } catch (\Throwable $e) {
-                    return redirect()->back()->with('error', 'Gagal membuat PDF: ' . $e->getMessage());
-                }
+                $this->generateDoc('template_p37.docx', $dataRow, $baseFileName . ".docx", $folderBackup, $generatedFiles);
+            } else {
+                $html = view('App\Modules\Sidang\Views\pdf\template_p37', $dataRow);
+                $mpdf = new \Mpdf\Mpdf(['format' => [215, 330], 'margin_left'=>20, 'margin_right'=>15, 'margin_top'=>15, 'margin_bottom'=>10]);
+                $mpdf->WriteHTML($html);
+                $finalP = $folderBackup . DIRECTORY_SEPARATOR . $baseFileName . '.pdf';
+                $mpdf->Output($finalP, 'F');
+                $generatedFiles[$baseFileName . '.pdf'] = $finalP;
             }
-        }
-
-        // 3. DOWNLOAD
-        $totalFiles = count($generatedFiles);
-        if ($totalFiles === 0) return redirect()->back()->with('error', 'Gagal generate file.');
-
-        if ($totalFiles === 1) {
-            $singleFile = reset($generatedFiles);
-            $downloadName = array_key_first($generatedFiles); 
-            return $this->response->download($singleFile, null)->setFileName($downloadName);
-        } else {
-            $zip = new \ZipArchive();
-            $ext = ($outputFormat === 'pdf') ? 'PDF' : 'WORD';
-            $zipName = $folderBackup . DIRECTORY_SEPARATOR . "Berkas_Sidang_{$ext}_{$fileDateStr}.zip";
-            
-            if ($zip->open($zipName, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
-                foreach ($generatedFiles as $fname => $fpath) {
-                    if (file_exists($fpath)) $zip->addFile($fpath, $fname);
-                }
-                $zip->close();
-            }
-            return $this->response->download($zipName, null)->setFileName(basename($zipName));
         }
     }
+
+    // -----------------------------------------------------
+    // B. GENERATE P-38 (KOLEKTIF)
+    // -----------------------------------------------------
+    
+    // -----------------------------------------------------
+    // B. GENERATE P-38 (KOLEKTIF) - VERSI FIX FINAL & E-SIGN WORD
+    // -----------------------------------------------------
+    if (is_array($docTypes) && in_array('p38', $docTypes)) {
+        
+        $firstRow = $targetData[0];
+        $tsSdn = strtotime($firstRow['tanggal_sidang']);
+        $hariArr = ['Sunday'=>'Minggu','Monday'=>'Senin','Tuesday'=>'Selasa','Wednesday'=>'Rabu','Thursday'=>'Kamis','Friday'=>'Jumat','Saturday'=>'Sabtu'];
+        $bulanArr = [1=>'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
+        
+        // 1. Definisikan semua variabel agar tidak "Undefined"
+        $p38Instansi   = $customInstansi;
+        $p38Kota       = $customKota;
+        $p38TglSurat   = $this->formatTglSaja(date('Y-m-d'));
+        $namaHariSaja   = $hariArr[date('l', $tsSdn)];
+        $tanggalSaja    = date('d', $tsSdn) . ' ' . $bulanArr[(int)date('m', $tsSdn)] . ' ' . date('Y', $tsSdn);
+        $namaTerdakwaPertama = $this->cleanNamaTerdakwa($firstRow['nama_terdakwa']);
+
+        $p38TtdNama    = strtoupper(!empty($ttdNama) ? $ttdNama : $firstRow['jpu']);
+        $p38TtdNip     = !empty($ttdNip) ? $ttdNip : '';
+        $p38TtdJabatan = !empty($ttdJabatan) ? $ttdJabatan : 'Kepala Seksi Tindak Pidana Umum';
+        $p38TtdPangkat = !empty($ttdPangkat) ? $toTitle($ttdPangkat) : '';
+
+        // 2. Siapkan Data Tabel
+        $dataTabelP38 = [];
+        $no = 1;
+        foreach ($targetData as $row) {
+            $det = json_decode($row['data_full'], true);
+            $dataTabelP38[] = [
+                'no' => $no++, 
+                'nomor_perkara' => $row['nomor_perkara'],
+                'nama_terdakwa' => $this->cleanNamaTerdakwa($row['nama_terdakwa']),
+                'jpu' => $row['jpu'], 
+                'agenda' => $det['agenda_raw'] ?? '-'
+            ];
+        }
+
+        $baseP38Name = (count($targetData) === 1) ? "P38_".$this->cleanNamaTerdakwa($firstRow['nama_terdakwa'])."_{$fileDateStr}" : "P38_Kolektif_{$fileDateStr}";
+
+        // === OPSI 1: FORMAT WORD ===
+        if ($outputFormat === 'word') {
+            $tplPath = WRITEPATH . 'templates/template_p38.docx';
+            if (file_exists($tplPath)) {
+                $proc = new \PhpOffice\PhpWord\TemplateProcessor($tplPath);
+                
+                // Isi Header
+                $proc->setValue('nama_instansi', $p38Instansi);
+                $proc->setValue('nomor_surat',   $customNomorSurat);
+                $proc->setValue('kota_surat',    $p38Kota);
+                $proc->setValue('tanggal_surat', $p38TglSurat);
+                $proc->setValue('hari_sidang',   $namaHariSaja);
+                $proc->setValue('tanggal_sidang',$tanggalSaja);
+                $proc->setValue('nama_terdakwa_pertama', $namaTerdakwaPertama);
+                
+                // Isi Penandatangan [cite: 52, 53, 54]
+                $proc->setValue('ttd_jabatan',   $p38TtdJabatan);
+                $proc->setValue('ttd_nama',      $p38TtdNama);
+                $proc->setValue('ttd_pangkat',   $p38TtdPangkat);
+                $proc->setValue('ttd_nip',       !empty($p38TtdNip) ? 'NIP. ' . $p38TtdNip : '');
+
+                // INSERT LOGO E-SIGN KE WORD
+                // Ganti [Image 2] di template dengan logo asli
+                $pathEsign = FCPATH . 'images/logoEsign.png';
+                if (file_exists($pathEsign)) {
+                    // Pastikan di Word lo ada placeholder gambar atau teks [Image 2]
+                    // Atau gunakan metode paling simpel: taruh gambar di template lalu biarkan
+                }
+
+                // Handle Looping Tabel 
+                $countRows = count($dataTabelP38);
+                if ($countRows > 0) {
+                    $proc->cloneRow('no', $countRows); 
+                    foreach ($dataTabelP38 as $index => $rowData) {
+                        $curr = $index + 1;
+                        $proc->setValue('no#' . $curr, $rowData['no']);
+                        $proc->setValue('nama_terdakwa#' . $curr, $rowData['nama_terdakwa']);
+                        $proc->setValue('jpu#' . $curr, $rowData['jpu']);
+                        $proc->setValue('agenda#' . $curr, $rowData['agenda']);
+                    }
+                }
+
+                $finalWordName = $baseP38Name . ".docx";
+                $saveP = $folderBackup . DIRECTORY_SEPARATOR . $finalWordName;
+                $proc->saveAs($saveP);
+                $generatedFiles[$finalWordName] = $saveP;
+            }
+        } 
+        
+        // === OPSI 2: FORMAT PDF ===
+        else if ($outputFormat === 'pdf') {
+            $dataForPdf = [
+                'logo_path'       => FCPATH . ($this->setting->get('logo') ?? 'images/logo_kejaksaan.png'), 
+                'nama_instansi'   => $p38Instansi,
+                'alamat_instansi' => $this->setting->get('alamat') ?? '-',
+                'nomor_surat'     => $customNomorSurat,
+                'kota_surat'      => $p38Kota,
+                'tanggal_surat'   => $p38TglSurat,
+                'hari_sidang'     => $namaHariSaja,
+                'tanggal_sidang'  => $tanggalSaja,
+                'nama_terdakwa_pertama' => $namaTerdakwaPertama,
+                'ttd_jabatan'     => $p38TtdJabatan,
+                'ttd_nama'        => $p38TtdNama,
+                'ttd_pangkat'     => $p38TtdPangkat,
+                'ttd_nip'         => $p38TtdNip,
+                'data_tabel'      => $dataTabelP38
+            ];
+
+            $html = view('App\Modules\Sidang\Views\pdf\template_p38', $dataForPdf);
+            $mpdf = new \Mpdf\Mpdf(['format' => [215, 330], 'margin_top'=>15, 'margin_left'=>20, 'margin_right'=>15]);
+            $mpdf->WriteHTML($html);
+            $finalP = $folderBackup . DIRECTORY_SEPARATOR . $baseP38Name . '.pdf';
+            $mpdf->Output($finalP, 'F');
+            $generatedFiles[$baseP38Name . '.pdf'] = $finalP;
+        }
+    }
+
+
+    // 3. PROSES DOWNLOAD FINAL
+    if (count($generatedFiles) === 0) return redirect()->back()->with('error', 'Gagal generate file.');
+
+    if (count($generatedFiles) === 1) {
+        $singlePath = reset($generatedFiles);
+        return $this->response->download($singlePath, null)->setFileName(array_key_first($generatedFiles));
+    } else {
+        $zip = new \ZipArchive();
+        $zipName = $folderBackup . DIRECTORY_SEPARATOR . "Berkas_Sidang_".strtoupper($outputFormat)."_{$fileDateStr}.zip";
+        if ($zip->open($zipName, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === TRUE) {
+            foreach ($generatedFiles as $fname => $fpath) { $zip->addFile($fpath, $fname); }
+            $zip->close();
+        }
+        return $this->response->download($zipName, null)->setFileName(basename($zipName));
+    }
+}
 
     private function generateDoc($tpl, $data, $outName, $path, &$filesArr) {
         $tplPath = WRITEPATH . 'templates/' . $tpl;
